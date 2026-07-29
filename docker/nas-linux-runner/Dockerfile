@@ -18,12 +18,18 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk ANDROID_HOME=/opt/android-sdk
 ENV PATH="/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:${PATH}"
 
 # CI toolchain (mirrors the Proxmox linux image): build tooling + Native AOT prereqs +
-# CodeQL language toolchains (golang-go, ruby-full; JDK comes with the Android block below).
+# language toolchains (golang-go, ruby-full; JDK comes with the Android block below).
+# GL/EGL runtime libs (libglvnd dispatch + Mesa software fallback): .NET graphics stacks
+# (SkiaSharp GPU, OpenGL/EGL offscreen render) dlopen libEGL.so.1 / libGL.so.1 at runtime —
+# absent on the CUDA base. The nvidia runtime injects the GPU driver; libglvnd routes to it,
+# Mesa (libgl1-mesa-dri / libegl-mesa0) is the CPU fallback when no GPU is attached.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential clang zlib1g-dev cmake ninja-build mingw-w64 binutils gdb \
       git curl wget unzip zip jq ca-certificates pkg-config sqlite3 ffmpeg \
       python3 python3-pip python3-venv sudo gnupg apt-transport-https \
       golang-go ruby-full openjdk-17-jdk \
+      libglvnd0 libgl1 libglx0 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 \
+      libasound2-dev libpulse-dev libudev-dev \
  && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 

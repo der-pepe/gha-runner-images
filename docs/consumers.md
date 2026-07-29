@@ -40,6 +40,12 @@ Defined by the Packer + Ansible automation in this repo:
   clang + zlib1g-dev (Native AOT), cmake, ninja, mingw-w64, binutils, gdb, sqlite3, ffmpeg,
   zip/unzip, python3, Node.js LTS, and the `android` .NET workload. Android SDK/JDK are NOT
   baked — Android jobs provide those (setup-java / android-actions).
+  Also `libasound2-dev`, `libpulse-dev`, `libudev-dev` — the headers native audio
+  (ALSA/PulseAudio) and device-enumeration (udev/hidraw) bindings compile against.
+- **NAS GPU runner** (`docker/nas-linux-runner`, labels `nas,gpu,android`) mirrors the Linux
+  toolchain and adds the **GL/EGL runtime** (`libglvnd0`, `libgl1`, `libglx0`, `libegl1`,
+  `libgles2`, plus Mesa `libgl1-mesa-dri`/`libegl-mesa0` as the no-GPU fallback) — .NET
+  graphics stacks `dlopen` `libEGL.so.1`/`libGL.so.1`, which the CUDA base image lacks.
 - **Code-quality / security scanners** (Linux base image; also present on Windows + NAS):
   **Trivy** at `/usr/local/bin/trivy` (release artifact, SHA-256 verified), **SonarScanner
   for .NET** (`dotnet-sonarscanner`) under `/opt/dotnet-tools`, and the generic

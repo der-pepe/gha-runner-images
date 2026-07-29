@@ -60,7 +60,9 @@ variable "runner_memory" {
 variable "runner_apt_packages" {
   # clang + zlib1g-dev are the Native AOT Linux prereqs. openjdk/golang/ruby are for CodeQL
   # (Java/Kotlin, Go, Ruby); C#/C++/JS/Python toolchains are covered by dotnet/build-essential/node/python3.
-  default     = "build-essential clang zlib1g-dev cmake ninja-build mingw-w64 binutils gdb git curl wget unzip zip jq ca-certificates pkg-config sqlite3 ffmpeg python3 python3-pip python3-venv openjdk-17-jdk golang-go ruby-full"
+  # libasound2-dev/libpulse-dev/libudev-dev are the -dev headers native audio + device-enumeration
+  # bindings (ALSA/PulseAudio, udev/hidraw) compile against; the runtime libs come in as their deps.
+  default     = "build-essential clang zlib1g-dev cmake ninja-build mingw-w64 binutils gdb git curl wget unzip zip jq ca-certificates pkg-config sqlite3 ffmpeg python3 python3-pip python3-venv openjdk-17-jdk golang-go ruby-full libasound2-dev libpulse-dev libudev-dev"
   description = "Space-separated apt packages installed into the runner image."
 }
 variable "dotnet_workloads" {

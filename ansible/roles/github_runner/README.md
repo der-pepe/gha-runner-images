@@ -17,7 +17,7 @@ with `gather_facts: false`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `actions_runner_version` | `2.329.0` | Pinned runner package version |
+| `actions_runner_version` | `2.335.1` | Pinned runner package version |
 | `actions_runner_dir` | `/opt/actions-runner` | Install dir (group_vars set Windows path) |
 | `actions_work_dir` | `/opt/actions-work` | Work dir |
 | `runner_user` | `gha-runner` | Local service account |

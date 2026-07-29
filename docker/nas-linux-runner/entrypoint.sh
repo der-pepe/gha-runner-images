@@ -40,13 +40,21 @@ mint() {
 
 cleanup_orphans
 
-# Prefer the stable name; if it's held by a stuck runner (killed mid-job -> offline+busy ->
-# 422-undeletable -> 409), fall back to a unique suffix so we still come up.
+# Prefer the stable name. On a redeploy the previous container's runner may still be ONLINE
+# for a few seconds (name-in-use -> 409); retry the base a few times so it can auto-remove
+# before we resort to a suffix. cleanup_orphans re-runs each try to reap it once it goes
+# offline. Only if the base stays held (e.g. a stuck offline+busy runner) do we suffix.
 NAME="$BASE"
-jit="$(mint "$NAME")"
+jit=""
+for _ in 1 2 3 4 5; do
+  jit="$(mint "$NAME")"
+  [ -n "$jit" ] && break
+  sleep 3
+  cleanup_orphans
+done
 if [ -z "$jit" ]; then
   NAME="${BASE}-$(head -c3 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-  echo "base name unavailable; using ${NAME}"
+  echo "base name still unavailable after retries; using ${NAME}"
   jit="$(mint "$NAME")"
 fi
 [ -n "$jit" ] || fail_sleep "jitconfig generation failed (check the token scope / org)"

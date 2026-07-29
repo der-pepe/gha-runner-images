@@ -1,6 +1,6 @@
 services:
   gha-nas-linux:
-    build: .
+    # build: .
     image: gha-nas-linux-runner:latest
     # Single-shot entrypoint: runs one job then exits, so restart:always gives every job a
     # fresh container. No separate orchestrator — the container self-mints its JIT config.
