@@ -7,7 +7,7 @@ description: Tear down a runner — deregister it from the GitHub org, then stop
 
 Creds from the shared gitignored `.claude/skills/pve-status/pve.local.env`:
 PROXMOX_URL/TOKEN_ID/TOKEN (+ optional PROXMOX_NODE), and — for the GitHub step —
-`GITHUB_TOKEN` (org PAT with runner admin) + `GITHUB_OWNER` (e.g. der-pepe-dev). Without
+`GITHUB_TOKEN` (org PAT with runner admin) + `GITHUB_OWNER` (e.g. der-pepe). Without
 the GitHub creds it only destroys the VM.
 
 ```bash

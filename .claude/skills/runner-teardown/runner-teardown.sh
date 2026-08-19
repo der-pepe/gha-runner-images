@@ -3,7 +3,7 @@
 #
 # Creds from the shared gitignored env (../pve-status/pve.local.env):
 #   PROXMOX_URL / PROXMOX_TOKEN_ID / PROXMOX_TOKEN   (+ optional PROXMOX_NODE)
-#   GITHUB_TOKEN  (org PAT with runner admin)   GITHUB_OWNER (e.g. der-pepe-dev)
+#   GITHUB_TOKEN  (org PAT with runner admin)   GITHUB_OWNER (e.g. der-pepe)
 # If the GitHub creds are absent, only the VM is destroyed (GitHub entry left to
 # go offline).
 #

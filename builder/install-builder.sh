@@ -11,7 +11,7 @@ set -euo pipefail
 
 [ "$(id -u)" = "0" ] || { echo "run as root" >&2; exit 1; }
 SD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_URL="${REPO_URL:-https://github.com/der-pepe-dev/gha-runner-images.git}"
+REPO_URL="${REPO_URL:-https://github.com/der-pepe/gha-runner-images.git}"
 REPO_DIR="${REPO_DIR:-/opt/gha-runner-images}"
 APP=/opt/gha-builder
 CFG=/etc/gha-builder

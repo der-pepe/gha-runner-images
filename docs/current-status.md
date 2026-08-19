@@ -220,3 +220,13 @@ the build-up. The `dotnet_sdk` / `github_runner` roles and the persistent-runner
     (`netdev net0: using 'host_mtu=1500' for migration compat`), so every Windows reset
     reported `ERR ... rollback failed` despite succeeding. Now accepts `OK` and
     `WARNINGS:*`. Deployed to all three orchestrator LXCs.
+- 2026-08-19: GitHub owner renamed — the `der-pepe-dev` org and the `der-pepe` user
+  swapped names, so the **org is now `der-pepe`**. Updated the git remote, the builder's
+  clone URL, `GITHUB_OWNER` on all three orchestrator LXCs, the NAS compose file, and the
+  doc/skill references. Existing runner registrations and the PAT carried over untouched
+  (both entities kept their IDs, so the token still authorises the org under its new
+  name) — but `api.github.com/orgs/der-pepe-dev/...` now 404s because that name resolves
+  to a *user*, which broke JIT minting fleet-wide until the configs were updated. Dated
+  entries above intentionally keep the old name: they record what was true then.
+  **Still manual**: the TrueNAS runner app's `GITHUB_OWNER` env var (not reachable from
+  this repo) — update it or the NAS runner will 404 on its next container restart.

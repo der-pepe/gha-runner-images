@@ -14,7 +14,7 @@ lifecycle; 1 HA builder owns image regeneration (single cluster-wide template).
 ## Phase 1 — Prove one runner (DONE)
 
 - [x] Clone one VM from a template, Ansible-register it (org-level), confirm it appears
-      in the **der-pepe-dev** GitHub org's runners and runs a job. This is the same
+      in the **der-pepe** GitHub org's runners and runs a job. This is the same
       registration the orchestrator will call — proving it de-risks the orchestrator.
 
 ## Phase 2 — Runner-lifecycle loop (DONE — proven end-to-end 2026-07-01)

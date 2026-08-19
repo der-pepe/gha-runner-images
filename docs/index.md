@@ -2,7 +2,7 @@
 
 Packer + Ansible automation for building Proxmox-hosted GitHub Actions self-hosted runner images
 
-Repository: `https://github.com/der-pepe-dev/gha-runner-images`
+Repository: `https://github.com/der-pepe/gha-runner-images`
 
 ## Main goals
 
