@@ -40,7 +40,21 @@ rm -f "$ENV_FILE" 2>/dev/null || true
 # far in the past). A stale clock breaks JIT/token auth — GitHub rejects the runner and it
 # exits. Step the clock immediately from an HTTPS Date header (fast, no NTP roundtrip),
 # then hand off to NTP for ongoing accuracy. Harmless on a cold boot (already correct).
-http_date="$(curl -sI --max-time 5 https://github.com 2>/dev/null | awk -F': ' 'tolower($1)=="date"{print $2}' | tr -d '\r')"
+#
+# Two things this MUST NOT do, both learned the hard way:
+#   1. Abort the bootstrap. Under `set -e` an unguarded assignment inherits curl's exit
+#      status, so a slow or unreachable fetch killed the runner before it ever started
+#      (the waiter died with status=28, curl's timeout code). Every step here is
+#      best-effort: a missing date just leaves NTP to converge.
+#   2. Verify TLS. The certificate validity window is checked against the very clock we
+#      are here to correct, so a stale clock makes a *verified* fetch fail — the fetch
+#      that would have fixed it. -k breaks that chicken-and-egg. The value only seeds the
+#      clock; authenticated NTP below immediately takes over.
+http_date=""
+for _dh in https://github.com https://api.github.com; do
+  http_date="$(curl -skI --max-time 5 "$_dh" 2>/dev/null | awk -F': ' 'tolower($1)=="date"{print $2}' | tr -d '\r' | tail -1)" || http_date=""
+  [ -n "$http_date" ] && break
+done
 if [ -n "$http_date" ]; then date -s "$http_date" >/dev/null 2>&1 || true; fi
 timedatectl set-ntp true 2>/dev/null || true
 systemctl restart systemd-timesyncd 2>/dev/null || true
