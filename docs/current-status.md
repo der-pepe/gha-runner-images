@@ -205,3 +205,18 @@ the build-up. The `dotnet_sdk` / `github_runner` roles and the persistent-runner
   when a Windows template hits `WIN_TEMPLATE_EVAL_MAX_DAYS` (default 100); age derived from
   Proxmox VM `ctime`, no state file. Regenerate via packer or `slmgr /rearm` to reset.
   See windows-runner.md + orchestrator/README.md.
+- 2026-07-22: pve2 RAM upgraded 16 GB -> 64 GB, so the Windows runner slot it was skipped
+  for is now enabled. Fleet is 3 Linux + 3 Windows: added `gha-win-eph02` (VMID 322,
+  cloned from Windows template 107, renamed + clean vmstate snapshot via `/runner-reseed`)
+  and flipped pve2's `node.local.env` to `SLOT_COUNT=2`. Also corrected the stale
+  `SLOT_1_TEMPLATE_VMID=109` -> `106` on all three orchestrators (109 was superseded by
+  the 2026-07-22 Linux rebuild; 109 still needs `qm destroy 109 --purge`).
+  Two supporting fixes:
+  * `runner-slot.sh` gained `PROXMOX_TARGET_NODE` — it could only create a slot on the
+    node holding the template. Ceph makes templates cluster-wide, so a cross-node full
+    clone is valid; slot-side ops (snapshot/stop/destroy) now address the target node.
+  * `gha-local-orchestrator.sh` `wait_for_task` treated a Proxmox task whose exitstatus
+    is `WARNINGS: <n>` as a failure. Windows vmstate rollbacks routinely warn
+    (`netdev net0: using 'host_mtu=1500' for migration compat`), so every Windows reset
+    reported `ERR ... rollback failed` despite succeeding. Now accepts `OK` and
+    `WARNINGS:*`. Deployed to all three orchestrator LXCs.

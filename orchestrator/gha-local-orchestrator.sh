@@ -104,16 +104,23 @@ pve_post() {
   curl -fsS -k -H "$PVE_AUTH" -X POST "${PROXMOX_URL}${path}" "$@"
 }
 
-# Wait for a Proxmox task (UPID) to finish with exit status OK.
+# Wait for a Proxmox task (UPID) to finish successfully.
+# A task that only emitted warnings reports exitstatus "WARNINGS: <n>", not "OK" — that is
+# still success. Windows vmstate rollbacks routinely warn (e.g. "netdev net0: using
+# 'host_mtu=1500' for migration compat"), so treating warnings as failure would fail every
+# reset on a healthy slot.
 wait_for_task() {
-  local upid="$1" tries=120 body status
+  local upid="$1" tries=120 body status exitstatus
   [ -n "$upid" ] && [ "$upid" != "null" ] || return 0
   while [ "$tries" -gt 0 ]; do
     body="$(curl -fsS -k -H "$PVE_AUTH" "${PROXMOX_URL}/nodes/${PROXMOX_NODE}/tasks/${upid}/status" 2>/dev/null)" || true
     status="$(printf '%s' "$body" | jq -r '.data.status // empty')"
     if [ "$status" = "stopped" ]; then
-      [ "$(printf '%s' "$body" | jq -r '.data.exitstatus // empty')" = "OK" ] && return 0
-      echo "task ${upid} did not exit OK" >&2; return 1
+      exitstatus="$(printf '%s' "$body" | jq -r '.data.exitstatus // empty')"
+      case "$exitstatus" in
+        OK|WARNINGS:*) return 0 ;;
+      esac
+      echo "task ${upid} did not exit OK (exitstatus: ${exitstatus:-unknown})" >&2; return 1
     fi
     sleep 2; tries=$((tries - 1))
   done

@@ -62,14 +62,14 @@ missing, off-PATH, or the wrong pinned version.
 
 ## Fleet
 
-One orchestrator LXC + a runner slot per node, **non-HA and node-pinned** (a down node's
-runner is just down). Each orchestrator points at its own node's API — no cross-node
-dependency.
+One orchestrator LXC + a Linux and a Windows runner slot per node, **non-HA and
+node-pinned** (a down node's runner is just down). Each orchestrator points at its own
+node's API — no cross-node dependency.
 
 | Node | Orchestrator LXC | Linux runner | Windows runner |
 |---|---|---|---|
 | pve1 | gha-orch01 | gha-linux-eph01 | gha-win-eph01 |
-| pve2 | gha-orch02 | gha-linux-eph02 | — (RAM-constrained) |
+| pve2 | gha-orch02 | gha-linux-eph02 | gha-win-eph02 |
 | pve3 | gha-orch03 | gha-linux-eph03 | gha-win-eph03 |
 
 Linux runners use vmstate (RAM) snapshots for ~15s recovery; Windows use off-state
