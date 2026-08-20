@@ -43,7 +43,7 @@ variable "install_updates" {
   description = "Run apt dist-upgrade during the build. Set false for fast test builds."
 }
 variable "runner_version" {
-  default     = "2.335.1"
+  default     = "2.336.0"
   description = "Pinned GitHub Actions runner version to bake into the image (unregistered)."
 }
 variable "runner_cores" {
@@ -70,7 +70,7 @@ variable "dotnet_workloads" {
   description = "Space-separated .NET workloads to install (e.g. 'android wasm-tools'). Empty = none."
 }
 variable "trivy_version" {
-  default     = "0.72.0"
+  default     = "0.74.0"
   description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH. Pinned; verified by checksum."
 }
 variable "sonar_scanner_version" {

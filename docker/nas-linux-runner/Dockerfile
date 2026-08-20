@@ -5,7 +5,7 @@
 ARG CUDA_BASE=nvidia/cuda:12.6.2-devel-ubuntu24.04
 FROM ${CUDA_BASE}
 
-ARG RUNNER_VERSION=2.335.1
+ARG RUNNER_VERSION=2.336.0
 ARG DOTNET_CHANNEL=10.0
 # Android (for .NET MAUI/Android + Gradle builds). Set INSTALL_ANDROID=0 to skip.
 ARG INSTALL_ANDROID=1
@@ -48,7 +48,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
 
 # Code-quality scanners: Trivy + SonarScanner (dotnet tool + generic CLI), on PATH.
 # All pinned. Trivy is checksum-verified; no vuln DB is baked (the workflow fetches it).
-ARG TRIVY_VERSION=0.72.0
+ARG TRIVY_VERSION=0.74.0
 ARG SONAR_SCANNER_VERSION=8.1.0.6389
 ARG DOTNET_SONARSCANNER_VERSION=11.2.1
 ENV PATH="/opt/dotnet-tools:/opt/sonar-scanner/bin:${PATH}"

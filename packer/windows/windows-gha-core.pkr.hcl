@@ -69,7 +69,7 @@ variable "install_updates" {
 }
 
 variable "runner_version" {
-  default     = "2.335.1"
+  default     = "2.336.0"
   description = "GitHub Actions runner version to bake (unregistered). Builder auto-bumps to latest."
 }
 variable "dotnet_channel" {
@@ -94,11 +94,11 @@ variable "vs_buildtools_url" {
   description = "Visual Studio Build Tools bootstrapper URL (VS 2022 = vs/17, stable)."
 }
 variable "cmake_version" {
-  default     = "3.30.5"
-  description = "Standalone CMake version to install on PATH (mirrors the linux image)."
+  default     = "4.4.2"
+  description = "Standalone CMake version to install on PATH (mirrors the linux image). NOTE: 4.x is a breaking major — it removed compatibility with cmake_minimum_required(VERSION <3.5), so a project whose CMakeLists declares an older minimum now fails to configure. Consumers hitting that either raise their minimum or set CMAKE_POLICY_VERSION_MINIMUM; pin this back to 3.30.5 if a project cannot be updated."
 }
 variable "ninja_version" {
-  default     = "1.12.1"
+  default     = "1.13.2"
   description = "Standalone Ninja version to install on PATH."
 }
 variable "install_codeql_langs" {
@@ -107,7 +107,7 @@ variable "install_codeql_langs" {
   description = "Bake the extra language toolchains: Node.js, Python, JDK (JAVA_HOME), Go, Ruby, Rust. Big (+GBs, +time)."
 }
 variable "trivy_version" {
-  default     = "0.72.0"
+  default     = "0.74.0"
   description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH."
 }
 variable "sonar_scanner_version" {
