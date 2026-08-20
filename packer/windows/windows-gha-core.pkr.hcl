@@ -260,6 +260,16 @@ build {
     }
   }
 
+  # Force a clean restart and wait for WinRM to genuinely come back before uploading
+  # anything. The update provisioner reports "Restart complete" once the machine answers
+  # again, but Windows can still be finishing post-update servicing, and the WinRM listener
+  # was observed dropping right afterwards: the very next file upload died with
+  # "dial tcp <ip>:5985: i/o timeout" and killed a 53-minute build. Packer's file
+  # provisioner does not retry the connection, so the wait has to happen here.
+  provisioner "windows-restart" {
+    restart_timeout = "30m"
+  }
+
   # Upload the JIT bootstrap + boot waiter, then bake the toolchain + runner + waiter task.
   provisioner "file" {
     source      = "../../orchestrator/bootstrap/windows-runner-once.ps1"
