@@ -195,18 +195,28 @@ reset_runner_slot() {
   fi
 
   # 5. Inject the JIT config via the guest agent (OS-specific path + format).
+  #
+  # The last line is a completeness marker. The waiter inside the guest polls for this file
+  # and previously started as soon as it was merely non-empty — but the JIT blob is ~4 KB
+  # and the write is not atomic from a concurrent reader's point of view, so the waiter
+  # could source a half-written file. Observed: the runner died with
+  # "/etc/gha-runner/env: line 2: ORCH: command not found" (status 127) against a file that
+  # was perfectly valid by the time anyone looked at it. The marker is written last, so its
+  # presence means every preceding line landed.
   if [ "$os" = "windows" ]; then
     env_path='C:\gha-runner\runner.env.ps1'
     env_content="\$env:RUNNER_JITCONFIG='${jitconfig}'
 \$env:ORCH_TRIGGER_URL='${ORCH_TRIGGER_URL}'
-\$env:RUNNER_NAME='${name}'"
+\$env:RUNNER_NAME='${name}'
+\$env:GHA_ENV_COMPLETE='1'"
   else
     env_path='/etc/gha-runner/env'
     # Single-quote values so `source /etc/gha-runner/env` can't word-split or run a stray
     # token if the JIT blob ever contains a shell-special char (base64 has no single quote).
     env_content="RUNNER_JITCONFIG='${jitconfig}'
 ORCH_TRIGGER_URL='${ORCH_TRIGGER_URL}'
-RUNNER_NAME='${name}'"
+RUNNER_NAME='${name}'
+GHA_ENV_COMPLETE='1'"
   fi
   pve_agent_write_file "$vmid" "$env_path" "$env_content" \
     || { echo "ERR ${name}: jitconfig injection failed" >&2; return 1; }

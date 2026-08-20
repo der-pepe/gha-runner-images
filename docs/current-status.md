@@ -248,3 +248,17 @@ the build-up. The `dotnet_sdk` / `github_runner` roles and the persistent-runner
   normal, not a fault. The durable improvement would be to trigger recycling off the VM
   stopping (job finished) rather than polling GitHub status, which cannot distinguish
   "still booting" from "idle-dropped" from "dead".
+- 2026-08-20: Rebuilt the Linux template on pve2 (VMID 111, smoke test OK) carrying the
+  NTP-wait bootstrap fix, re-seeded all three Linux slots from it, and pointed
+  `SLOT_1_TEMPLATE_VMID` at 111 on all three orchestrators. Build on pve2, not pve1 — an
+  earlier attempt on pve1 died with "Timeout waiting for SSH" after 30 min because pve1 was
+  at load 10.20 and the installer could not finish in the window.
+  Found and fixed a second, unrelated bug while verifying: the env injection was not
+  atomic. The orchestrator writes a ~4 KB JIT blob with a single guest-agent `file-write`,
+  while the waiter started as soon as the file was merely non-empty (`[ -s ]` on Linux,
+  `Test-Path` on Windows). A waiter that woke mid-write sourced a truncated line and the
+  runner died with "/etc/gha-runner/env: line 2: ORCH: command not found" (status 127)
+  against a file that was perfectly valid by the time it was inspected — the slot then sat
+  idle until stuck detection recycled it. Both waiters now require a `GHA_ENV_COMPLETE`
+  marker written as the final line (Linux additionally requires `bash -n` to pass, catching
+  a torn final line). Fleet reached 6/6 online for the first time afterwards.

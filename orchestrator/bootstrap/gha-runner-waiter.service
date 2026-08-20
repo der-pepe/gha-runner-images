@@ -7,7 +7,11 @@ Wants=network-online.target
 Type=oneshot
 # The orchestrator writes /etc/gha-runner/env via the guest agent shortly after boot
 # (rollback -> start -> agent up -> file-write). Wait up to ~5 min for it.
-ExecStartPre=/bin/bash -c 'for i in $(seq 1 150); do [ -s /etc/gha-runner/env ] && exit 0; sleep 2; done; echo "no /etc/gha-runner/env injected" >&2; exit 1'
+# Wait for a COMPLETE env file, not merely a non-empty one. The orchestrator writes a
+# ~4 KB JIT blob; a reader that wakes mid-write sources a truncated line and the runner
+# dies with a shell syntax error. GHA_ENV_COMPLETE is written last, and `bash -n` catches
+# a torn final line, so both together mean the file is whole and parseable.
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 150); do if grep -q "^GHA_ENV_COMPLETE=" /etc/gha-runner/env 2>/dev/null && bash -n /etc/gha-runner/env 2>/dev/null; then exit 0; fi; sleep 2; done; echo "no complete /etc/gha-runner/env injected" >&2; exit 1'
 # linux-runner-once.sh sources the env, registers --ephemeral, runs one job, then
 # shuts the VM down. The orchestrator then detects "stopped" and rolls back again.
 ExecStart=/opt/gha-runner/linux-runner-once.sh
