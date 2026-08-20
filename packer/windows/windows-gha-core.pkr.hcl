@@ -33,6 +33,11 @@ variable "proxmox_node" {
   description = "Target Proxmox node."
 }
 
+variable "autounattend_file" {
+  type        = string
+  default     = "autounattend.xml"
+  description = "Unattended-install answer file. Must match the ISO: it selects the edition by /IMAGE/NAME, and that string differs between Server releases (\"Windows Server 2022 SERVERSTANDARDCORE\" vs the 2025 equivalent). A mismatch stalls setup at image selection, which surfaces only as a WinRM timeout. Use autounattend-2025.xml with Server 2025 media."
+}
 variable "iso_file" {
   type        = string
   default     = "local:iso/windows-server-2022.iso"
@@ -199,7 +204,7 @@ source "proxmox-iso" "win_gha_core" {
     device           = "sata3"
     iso_storage_pool = var.iso_storage_pool
     cd_files = [
-      "autounattend.xml",
+      var.autounattend_file,
       "scripts/enable-winrm.ps1",
       "scripts/install-qemu-guest-agent.ps1",
       "scripts/cleanup.ps1"
