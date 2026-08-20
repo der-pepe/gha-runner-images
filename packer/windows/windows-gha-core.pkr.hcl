@@ -106,6 +106,10 @@ variable "install_codeql_langs" {
   default     = true
   description = "Bake the extra language toolchains: Node.js, Python, JDK (JAVA_HOME), Go, Ruby, Rust. Big (+GBs, +time)."
 }
+variable "codeql_bundle_version" {
+  default     = "2.26.3"
+  description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download it every run. Must match the version github/codeql-action requests; a mismatch just falls back to downloading. Empty string skips seeding."
+}
 variable "trivy_version" {
   default     = "0.74.0"
   description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH."
@@ -293,6 +297,7 @@ build {
       "TRIVY_VERSION=${var.trivy_version}",
       "SONAR_SCANNER_VERSION=${var.sonar_scanner_version}",
       "DOTNET_SONARSCANNER_VERSION=${var.dotnet_sonarscanner_version}",
+      "CODEQL_BUNDLE_VERSION=${var.codeql_bundle_version}",
     ]
     scripts = ["scripts/install-runner.ps1"]
   }

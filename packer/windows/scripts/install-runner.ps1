@@ -145,6 +145,28 @@ $p = ($p.TrimEnd(';') + ';C:\Program Files\dotnet;C:\Program Files\Git\cmd;C:\Pr
 [Environment]::SetEnvironmentVariable('Path', $p, 'Machine')
 [Environment]::SetEnvironmentVariable('DOTNET_ROOT', 'C:\Program Files\dotnet', 'Machine')
 
+# AGENT_TOOLSDIRECTORY moves the toolcache OUT of _work. The runner's default cache
+# (C:\actions-runner\_work\_tool) sits inside the workspace, so on these ephemeral slots every
+# job starts from a vmstate rollback with an empty cache and re-downloads its toolchain — the
+# CodeQL bundle alone costs ~40s of download plus extraction, every run. A path outside _work is
+# part of the image, so anything seeded at build time survives the rollback.
+[Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', 'C:\hostedtoolcache', 'Machine')
+New-Item -Force -ItemType Directory 'C:\hostedtoolcache' | Out-Null
+
+# Seed the CodeQL bundle into that toolcache, in the layout actions/tool-cache expects:
+# <tools>\CodeQL\<version>\x64 plus a sibling <version>\x64.complete marker — without the
+# marker the entry is ignored and the action downloads anyway. codeql-action requests a specific
+# bundle version, so a mismatch simply falls back to downloading (slow, not broken).
+if ($env:CODEQL_BUNDLE_VERSION) {
+    Write-Host "Seeding CodeQL bundle $env:CODEQL_BUNDLE_VERSION into the toolcache..."
+    $cqRoot = "C:\hostedtoolcache\CodeQL\$($env:CODEQL_BUNDLE_VERSION)\x64"
+    New-Item -Force -ItemType Directory $cqRoot | Out-Null
+    Invoke-WebRequest "https://github.com/github/codeql-action/releases/download/codeql-bundle-v$($env:CODEQL_BUNDLE_VERSION)/codeql-bundle-win64.tar.gz" -OutFile 'C:\Windows\Temp\codeql.tar.gz' -UseBasicParsing
+    & tar.exe xz -C $cqRoot -f 'C:\Windows\Temp\codeql.tar.gz'
+    Remove-Item 'C:\Windows\Temp\codeql.tar.gz' -Force -ErrorAction SilentlyContinue
+    New-Item -Force -ItemType File "C:\hostedtoolcache\CodeQL\$($env:CODEQL_BUNDLE_VERSION)\x64.complete" | Out-Null
+}
+
 Write-Host "Extracting GitHub Actions runner $rv (unregistered)..."
 $zip = 'C:\actions-runner\runner.zip'
 Invoke-WebRequest "https://github.com/actions/runner/releases/download/v$rv/actions-runner-win-x64-$rv.zip" -OutFile $zip -UseBasicParsing

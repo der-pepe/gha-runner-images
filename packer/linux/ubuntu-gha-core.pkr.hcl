@@ -69,6 +69,10 @@ variable "dotnet_workloads" {
   default     = ""
   description = "Space-separated .NET workloads to install (e.g. 'android wasm-tools'). Empty = none."
 }
+variable "codeql_bundle_version" {
+  default     = "2.26.3"
+  description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download ~500 MB every run. Must match the version github/codeql-action requests: if the action wants a newer bundle it misses this cache and downloads anyway (harmless, just slow). Bump when the action does; empty string skips seeding."
+}
 variable "trivy_version" {
   default     = "0.74.0"
   description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH. Pinned; verified by checksum."
@@ -236,9 +240,20 @@ build {
       "curl -fsSL -o /tmp/runner.tar.gz https://github.com/actions/runner/releases/download/v${var.runner_version}/actions-runner-linux-x64-${var.runner_version}.tar.gz",
       "sudo tar -xzf /tmp/runner.tar.gz -C /opt/actions-runner",
       "sudo /opt/actions-runner/bin/installdependencies.sh",
+      # Seed the CodeQL bundle into the toolcache. Layout is the one actions/tool-cache
+      # expects: <tools>/CodeQL/<version>/x64 plus a sibling <version>/x64.complete marker —
+      # without the marker the cache entry is ignored and the action downloads anyway.
+      # codeql-action asks for the bundle by version, so this only hits when the pinned
+      # version matches what the action wants; a mismatch just falls back to downloading.
+      "${var.codeql_bundle_version != "" ? "sudo mkdir -p /opt/hostedtoolcache/CodeQL/${var.codeql_bundle_version}/x64 && curl -fsSL -o /tmp/codeql.tar.gz https://github.com/github/codeql-action/releases/download/codeql-bundle-v${var.codeql_bundle_version}/codeql-bundle-linux64.tar.gz && sudo tar -xzf /tmp/codeql.tar.gz -C /opt/hostedtoolcache/CodeQL/${var.codeql_bundle_version}/x64 && rm -f /tmp/codeql.tar.gz && sudo touch /opt/hostedtoolcache/CodeQL/${var.codeql_bundle_version}/x64.complete && sudo chmod -R a+rX /opt/hostedtoolcache" : "true"}",
       # JAVA_HOME (CodeQL Java) + RUSTUP/CARGO_HOME (CodeQL Rust) baked into the runner's .env,
       # which the runner loads for every job.
-      "printf 'JAVA_HOME=%s\\nRUSTUP_HOME=/opt/rust\\nCARGO_HOME=/opt/rust\\n' \"$(dirname $(dirname $(readlink -f $(command -v javac))))\" | sudo tee /opt/actions-runner/.env >/dev/null",
+      # AGENT_TOOLSDIRECTORY moves the toolcache OUT of _work. The runner's default cache
+      # ($RUNNER_WORKDIR/_tool) is inside the workspace, so on these ephemeral slots every
+      # job starts from a rollback with an empty cache and re-downloads its toolchain
+      # (CodeQL bundle, setup-node/python/java/dotnet). A path outside _work is part of the
+      # image, so anything seeded at build time survives the rollback.
+      "printf 'JAVA_HOME=%s\\nRUSTUP_HOME=/opt/rust\\nCARGO_HOME=/opt/rust\\nAGENT_TOOLSDIRECTORY=/opt/hostedtoolcache\\n' \"$(dirname $(dirname $(readlink -f $(command -v javac))))\" | sudo tee /opt/actions-runner/.env >/dev/null",
       "sudo install -m 0755 /tmp/linux-runner-once.sh /opt/gha-runner/linux-runner-once.sh",
       "sudo chown -R gha-runner:gha-runner /opt/actions-runner /opt/actions-work",
       "sudo install -m 0644 /tmp/gha-runner-waiter.service /etc/systemd/system/gha-runner-waiter.service",
