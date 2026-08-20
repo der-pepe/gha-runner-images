@@ -247,11 +247,19 @@ for ((i = 1; i <= SLOT_COUNT; i++)); do
     if [ "$state" = "stopped" ]; then
       reset_runner_slot "$i"
     elif [ "$state" = "running" ]; then
-      # Stuck detection: a runner connects within ~1-2 min of a reset, so a slot running
-      # longer than the grace with NO online runner means the waiter/runner died without
-      # shutting down (the orchestrator would otherwise skip a running VM forever). Reset it.
+      # Stuck detection: a slot running longer than the grace with NO online runner means
+      # the waiter/runner died without shutting down (the orchestrator would otherwise skip
+      # a running VM forever). Reset it.
+      #
+      # The grace must exceed the FULL time-to-online, not just boot: a vmstate restore has
+      # to step the clock, wait for NTP, start run.sh and register, and GitHub's status
+      # lags that. Measured ~150s on Linux and well over 1166s on Windows. The old 300s
+      # default raced with this and killed healthy slots mid-startup, which restarted the
+      # clock sequence — a livelock the slot could never escape, so it never came online at
+      # all. Err long: a genuinely dead slot idles a while, a too-short grace breaks a
+      # working one permanently.
       up="$(get_vm_uptime "$slot_vmid")"
-      if [ "${up:-0}" -gt "${STUCK_AFTER_SEC:-300}" ] && ! runner_is_online "$slot_name"; then
+      if [ "${up:-0}" -gt "${STUCK_AFTER_SEC:-1800}" ] && ! runner_is_online "$slot_name"; then
         echo "${slot_name}: running ${up}s with no online runner — resetting (stuck)"
         reset_runner_slot "$i"
       fi

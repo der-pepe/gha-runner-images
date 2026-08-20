@@ -230,3 +230,21 @@ the build-up. The `dotnet_sdk` / `github_runner` roles and the persistent-runner
   entries above intentionally keep the old name: they record what was true then.
   **Still manual**: the TrueNAS runner app's `GITHUB_OWNER` env var (not reachable from
   this repo) — update it or the NAS runner will 404 on its next container restart.
+- 2026-08-20: Fixed a livelock that kept ephemeral slots permanently offline. Stuck
+  detection reset any slot running longer than `STUCK_AFTER_SEC` (default 300) with no
+  online runner — but the grace has to cover the *whole* time-to-online after a rollback:
+  vmstate restore, clock step, NTP sync, `run.sh` start, registration, and GitHub's own
+  status lag. Measured ~150s on Linux and >1166s on Windows, so healthy slots were killed
+  mid-startup, which restarted the clock sequence and guaranteed they never registered.
+  Logs showed a ~316s reset beat per slot. Raised the default (and the live config on all
+  three orchestrators) to 1800 and documented it in the example env files; resets stopped
+  immediately and slot uptimes went from a forced ~300s to 963s/6318s.
+  Also: the bootstrap now waits (bounded, 60s) for `NTPSynchronized=yes` before starting
+  `run.sh`. The HTTP-Date step is only second-accurate, so timesyncd's first real sync
+  could still step the clock by minutes *after* the runner authenticated, silently
+  dropping it offline — which the orchestrator then read as "stuck".
+  Note the residual behaviour: an idle JIT runner eventually drops its session on its own
+  and gets recycled (~1-3 min), so one or two of six showing offline at any moment is
+  normal, not a fault. The durable improvement would be to trigger recycling off the VM
+  stopping (job finished) rather than polling GitHub status, which cannot distinguish
+  "still booting" from "idle-dropped" from "dead".

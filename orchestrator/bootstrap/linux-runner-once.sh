@@ -59,6 +59,18 @@ if [ -n "$http_date" ]; then date -s "$http_date" >/dev/null 2>&1 || true; fi
 timedatectl set-ntp true 2>/dev/null || true
 systemctl restart systemd-timesyncd 2>/dev/null || true
 
+# Let NTP converge BEFORE run.sh authenticates. The HTTPS Date header above is only
+# second-accurate (and may not have been fetched at all), so timesyncd's first real sync
+# can still step the clock by minutes. Observed: a slot restored from a stale vmstate
+# snapshot connected fine, then timesyncd corrected the clock underneath it and the runner
+# silently dropped offline — the orchestrator saw "no online runner" and recycled the slot,
+# which restarted this whole sequence. Bounded wait: if NTP never converges we start anyway
+# rather than strand the slot, since the HTTP-Date step usually leaves us close enough.
+for _ in $(seq 1 30); do
+  [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ] && break
+  sleep 2
+done
+
 sudo -u "$RUNNER_USER" ./run.sh --jitconfig "$RUNNER_JITCONFIG"
 
 # Poke the orchestrator's LAN trigger so it resets this slot immediately instead of
