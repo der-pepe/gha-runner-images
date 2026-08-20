@@ -120,7 +120,17 @@ Expand-Archive 'C:\Windows\Temp\trivy.zip' -DestinationPath 'C:\Tools\trivy' -Fo
 
 Write-Host "Installing dotnet-sonarscanner $env:DOTNET_SONARSCANNER_VERSION..."
 # Pinned + idempotent (uninstall-then-install upgrades a prior pin cleanly).
-& 'C:\Program Files\dotnet\dotnet.exe' tool uninstall --tool-path 'C:\Tools\dotnet-tools' dotnet-sonarscanner 2>$null
+# On a fresh image the tool is NOT installed, so `dotnet tool uninstall` writes to stderr
+# and returns non-zero — the expected case here, not a failure. Under
+# $ErrorActionPreference='Stop' PowerShell promotes native stderr to a TERMINATING error,
+# so `2>$null` alone does not save us: the bake died after ~80 minutes on a clean build.
+# Demote errors for this one call, swallow both streams, and clear the exit status; the
+# install on the next line is the step that actually has to succeed.
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& 'C:\Program Files\dotnet\dotnet.exe' tool uninstall --tool-path 'C:\Tools\dotnet-tools' dotnet-sonarscanner 2>&1 | Out-Null
+$ErrorActionPreference = $prevEap
+$global:LASTEXITCODE = 0
 & 'C:\Program Files\dotnet\dotnet.exe' tool install --tool-path 'C:\Tools\dotnet-tools' --version $env:DOTNET_SONARSCANNER_VERSION dotnet-sonarscanner
 
 Write-Host 'Installing SonarScanner CLI...'
