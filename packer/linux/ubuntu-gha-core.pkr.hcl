@@ -62,7 +62,10 @@ variable "runner_apt_packages" {
   # (Java/Kotlin, Go, Ruby); C#/C++/JS/Python toolchains are covered by dotnet/build-essential/node/python3.
   # libasound2-dev/libpulse-dev/libudev-dev are the -dev headers native audio + device-enumeration
   # bindings (ALSA/PulseAudio, udev/hidraw) compile against; the runtime libs come in as their deps.
-  default     = "build-essential clang zlib1g-dev cmake ninja-build mingw-w64 binutils gdb git curl wget unzip zip jq ca-certificates pkg-config sqlite3 ffmpeg python3 python3-pip python3-venv openjdk-17-jdk golang-go ruby-full libasound2-dev libpulse-dev libudev-dev"
+  # upx-ucl packs release binaries; nsis builds Windows installers FROM Linux, which pairs with the
+  # mingw-w64 cross-compile toolchain already here. Both come from Ubuntu's repos, so apt's GPG
+  # chain covers them and they track the distro rather than carrying a pin of their own.
+  default     = "build-essential clang zlib1g-dev cmake ninja-build mingw-w64 binutils gdb git curl wget unzip zip jq ca-certificates pkg-config sqlite3 ffmpeg python3 python3-pip python3-venv openjdk-17-jdk golang-go ruby-full libasound2-dev libpulse-dev libudev-dev upx-ucl nsis"
   description = "Space-separated apt packages installed into the runner image."
 }
 variable "dotnet_workloads" {

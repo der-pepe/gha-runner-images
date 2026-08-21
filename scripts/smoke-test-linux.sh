@@ -52,7 +52,7 @@ fi
 # Cloud/IaC CLIs. Same rule as above: present, on PATH for the runner account, exits zero,
 # and reports the pinned version. `aws --version` writes to stdout on v2; `az version` needs
 # no login and emits JSON. None of these contact a cloud provider or need credentials.
-for tool in tofu tflint aws az wrangler; do
+for tool in tofu tflint aws az wrangler upx makensis; do
   have "$tool"
 done
 
@@ -79,6 +79,11 @@ if [ -n "${EXPECTED_WRANGLER:-}" ]; then
   printf '%s' "$wr_out" | grep -qF "$EXPECTED_WRANGLER" \
     || fail "wrangler version mismatch (want ${EXPECTED_WRANGLER}): ${wr_out}"
 fi
+
+# Packaging tools. Distro-provided (apt), so no version assertion — they track Ubuntu, not a
+# pin of our own. upx exits 0 on --version; makensis prints its banner and exits 0.
+upx --version >/dev/null 2>&1 || fail "upx --version exited non-zero"
+makensis -VERSION >/dev/null 2>&1 || fail "makensis -VERSION exited non-zero"
 
 # Azure CLI is intentionally not version-asserted: it comes from the Microsoft apt repo and
 # the pin is optional, so the image may legitimately carry whatever the repo served.

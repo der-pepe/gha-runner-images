@@ -106,6 +106,14 @@ variable "install_codeql_langs" {
   default     = true
   description = "Bake the extra language toolchains: Node.js, Python, JDK (JAVA_HOME), Go, Ruby, Rust. Big (+GBs, +time)."
 }
+variable "upx_version" {
+  default     = "5.2.0"
+  description = "UPX executable packer version. Release zip, SHA-256 verified against the published checksum file."
+}
+variable "nsis_version" {
+  default     = "3.11"
+  description = "NSIS (Windows installer builder) version. SourceForge setup.exe supports /S silent install; no checksum file is published alongside it, so this is pinned only."
+}
 variable "node_version" {
   default     = "24.19.0"
   description = "Node.js version (MSI). Must satisfy the npm tools installed on top: wrangler 4.x needs >=22, and the previous v20.17.0 pin failed the bake with EBADENGINE. Linux tracks NodeSource LTS — keep these close or the images drift."
@@ -326,6 +334,8 @@ build {
       "TFLINT_VERSION=${var.tflint_version}",
       "WRANGLER_VERSION=${var.wrangler_version}",
       "NODE_VERSION=${var.node_version}",
+      "UPX_VERSION=${var.upx_version}",
+      "NSIS_VERSION=${var.nsis_version}",
       "AWSCLI_VERSION=${var.awscli_version}",
       "AZURE_CLI_VERSION=${var.azure_cli_version}",
     ]

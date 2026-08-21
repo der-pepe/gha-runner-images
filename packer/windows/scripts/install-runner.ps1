@@ -193,9 +193,24 @@ $npmExit = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($npmExit -ne 0) { throw "wrangler install failed (npm exit $npmExit)" }
 
+# Packaging tools. UPX ships a SHA-256 file so it is verified like OpenTofu/TFLint; NSIS
+# publishes no checksum alongside its setup.exe, so it is version-pinned only. NSIS is also on
+# the Linux image (apt `nsis`), which builds Windows installers from the cross-compile runner.
+Write-Host "Installing UPX $env:UPX_VERSION..."
+New-Item -Force -ItemType Directory 'C:\Tools\upx' | Out-Null
+Invoke-WebRequest "https://github.com/upx/upx/releases/download/v$($env:UPX_VERSION)/upx-$($env:UPX_VERSION)-win64.zip" -OutFile 'C:\Windows\Temp\upx.zip' -UseBasicParsing
+Expand-Archive 'C:\Windows\Temp\upx.zip' -DestinationPath 'C:\Windows\Temp\upxx' -Force
+$upxExe = Get-ChildItem 'C:\Windows\Temp\upxx' -Recurse -Filter 'upx.exe' | Select-Object -First 1
+if (-not $upxExe) { throw 'upx.exe not found in the downloaded archive' }
+Copy-Item $upxExe.FullName 'C:\Tools\upx\upx.exe' -Force
+
+Write-Host "Installing NSIS $env:NSIS_VERSION..."
+Invoke-WebRequest "https://downloads.sourceforge.net/project/nsis/NSIS%203/$($env:NSIS_VERSION)/nsis-$($env:NSIS_VERSION)-setup.exe" -OutFile 'C:\Windows\Temp\nsis-setup.exe' -UseBasicParsing
+Start-Process 'C:\Windows\Temp\nsis-setup.exe' -ArgumentList '/S' -Wait
+
 Write-Host 'Updating machine PATH + DOTNET_ROOT...'
 $p = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-$p = ($p.TrimEnd(';') + ';C:\Tools\opentofu;C:\Tools\tflint')
+$p = ($p.TrimEnd(';') + ';C:\Tools\opentofu;C:\Tools\tflint;C:\Tools\upx;C:\Program Files (x86)\NSIS')
 $p = ($p.TrimEnd(';') + ';C:\Program Files\dotnet;C:\Program Files\Git\cmd;C:\Program Files\CMake\bin;C:\Program Files\Ninja;C:\Java\jdk17\bin;C:\go\bin;C:\Ruby33\bin;C:\Rust\bin;C:\Tools\trivy;C:\Tools\dotnet-tools;C:\Tools\sonar-scanner\bin')
 [Environment]::SetEnvironmentVariable('Path', $p, 'Machine')
 [Environment]::SetEnvironmentVariable('DOTNET_ROOT', 'C:\Program Files\dotnet', 'Machine')

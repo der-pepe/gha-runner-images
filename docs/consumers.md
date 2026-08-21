@@ -63,6 +63,12 @@ Defined by the Packer + Ansible automation in this repo:
   Microsoft apt repo so apt's GPG chain covers it; **AWS CLI v2 is pinned but not
   checksum-verified** — AWS publishes a GPG signature instead of a checksum file. **No cloud
   credentials, profiles, or subscriptions are baked** — the consuming workflow supplies them.
+- **Packaging tools** (all three images): **UPX** (executable packer) and **NSIS** (Windows
+  installer builder). On Linux/NAS both come from Ubuntu's repos (`upx-ucl`, `nsis`) so apt's
+  GPG chain covers them and they track the distro; NSIS on Linux pairs with the mingw-w64
+  cross-compile toolchain to build Windows installers without a Windows runner. On Windows,
+  UPX is a SHA-256-verified release zip under `C:\Tools\upx`, and NSIS installs silently to
+  `C:\Program Files (x86)\NSIS` — pinned only, as no checksum is published for its setup.exe.
 - **Windows runner** also bakes (packer/windows): Git, .NET 10 SDK, PowerShell 7 (pwsh),
   the runner + boot-waiter, and **Visual Studio Build Tools** (`install_buildtools`:
   MSBuild + ManagedDesktop + VCTools + VC.Tools.x86.x64 + Windows 11 SDK) — so MSBuild,

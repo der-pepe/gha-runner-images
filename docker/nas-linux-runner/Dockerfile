@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       golang-go ruby-full openjdk-17-jdk \
       libglvnd0 libgl1 libglx0 libegl1 libgles2 libgl1-mesa-dri libegl-mesa0 \
       libasound2-dev libpulse-dev libudev-dev \
+      upx-ucl nsis \
  && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
