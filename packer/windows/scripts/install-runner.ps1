@@ -185,6 +185,16 @@ $p = ($p.TrimEnd(';') + ';C:\Program Files\dotnet;C:\Program Files\Git\cmd;C:\Pr
 # CodeQL bundle alone costs ~40s of download plus extraction, every run. A path outside _work is
 # part of the image, so anything seeded at build time survives the rollback.
 [Environment]::SetEnvironmentVariable('AGENT_TOOLSDIRECTORY', 'C:\hostedtoolcache', 'Machine')
+
+# Telemetry opt-outs. These are build agents: nothing benefits from usage reporting, and each
+# phone-home is latency plus an outbound connection from a short-lived VM. All are the
+# vendors' documented switches, set machine-wide so every job inherits them.
+[Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', 'Machine')
+[Environment]::SetEnvironmentVariable('DOTNET_NOLOGO', '1', 'Machine')
+[Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', '1', 'Machine')
+[Environment]::SetEnvironmentVariable('WRANGLER_SEND_METRICS', 'false', 'Machine')
+[Environment]::SetEnvironmentVariable('AZURE_CORE_COLLECT_TELEMETRY', '0', 'Machine')
+[Environment]::SetEnvironmentVariable('SAM_CLI_TELEMETRY', '0', 'Machine')
 New-Item -Force -ItemType Directory 'C:\hostedtoolcache' | Out-Null
 
 # Seed the CodeQL bundle into that toolcache, in the layout actions/tool-cache expects:

@@ -298,7 +298,10 @@ build {
       # job starts from a rollback with an empty cache and re-downloads its toolchain
       # (CodeQL bundle, setup-node/python/java/dotnet). A path outside _work is part of the
       # image, so anything seeded at build time survives the rollback.
-      "printf 'JAVA_HOME=%s\\nRUSTUP_HOME=/opt/rust\\nCARGO_HOME=/opt/rust\\nAGENT_TOOLSDIRECTORY=/opt/hostedtoolcache\\n' \"$(dirname $(dirname $(readlink -f $(command -v javac))))\" | sudo tee /opt/actions-runner/.env >/dev/null",
+      # Telemetry opt-outs. These are build agents: nothing here benefits from usage
+      # reporting, and every phone-home is latency plus an outbound connection from a
+      # short-lived VM. All are the vendors' documented opt-out switches.
+      "printf 'JAVA_HOME=%s\\nRUSTUP_HOME=/opt/rust\\nCARGO_HOME=/opt/rust\\nAGENT_TOOLSDIRECTORY=/opt/hostedtoolcache\\nDOTNET_CLI_TELEMETRY_OPTOUT=1\\nDOTNET_NOLOGO=1\\nPOWERSHELL_TELEMETRY_OPTOUT=1\\nWRANGLER_SEND_METRICS=false\\nAZURE_CORE_COLLECT_TELEMETRY=0\\nSAM_CLI_TELEMETRY=0\\n' \"$(dirname $(dirname $(readlink -f $(command -v javac))))\" | sudo tee /opt/actions-runner/.env >/dev/null",
       "sudo install -m 0755 /tmp/linux-runner-once.sh /opt/gha-runner/linux-runner-once.sh",
       "sudo chown -R gha-runner:gha-runner /opt/actions-runner /opt/actions-work",
       "sudo install -m 0644 /tmp/gha-runner-waiter.service /etc/systemd/system/gha-runner-waiter.service",

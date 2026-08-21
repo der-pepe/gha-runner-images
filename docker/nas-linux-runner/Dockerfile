@@ -14,6 +14,10 @@ ARG ANDROID_API=35
 ARG ANDROID_BUILD_TOOLS=35.0.0
 ARG ANDROID_CMDLINE_TOOLS=11076708
 ENV DEBIAN_FRONTEND=noninteractive
+# Telemetry opt-outs — build agents have no use for usage reporting, and each phone-home is
+# latency plus an outbound connection. Vendors' documented switches.
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 POWERSHELL_TELEMETRY_OPTOUT=1 \
+    WRANGLER_SEND_METRICS=false AZURE_CORE_COLLECT_TELEMETRY=0 SAM_CLI_TELEMETRY=0
 ENV ANDROID_SDK_ROOT=/opt/android-sdk ANDROID_HOME=/opt/android-sdk
 ENV PATH="/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:${PATH}"
 
