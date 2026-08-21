@@ -106,6 +106,10 @@ variable "install_codeql_langs" {
   default     = true
   description = "Bake the extra language toolchains: Node.js, Python, JDK (JAVA_HOME), Go, Ruby, Rust. Big (+GBs, +time)."
 }
+variable "node_version" {
+  default     = "24.19.0"
+  description = "Node.js version (MSI). Must satisfy the npm tools installed on top: wrangler 4.x needs >=22, and the previous v20.17.0 pin failed the bake with EBADENGINE. Linux tracks NodeSource LTS — keep these close or the images drift."
+}
 variable "opentofu_version" {
   default     = "1.12.6"
   description = "OpenTofu (tofu) CLI version. Release zip, SHA-256 verified against the published SHA256SUMS."
@@ -321,6 +325,7 @@ build {
       "OPENTOFU_VERSION=${var.opentofu_version}",
       "TFLINT_VERSION=${var.tflint_version}",
       "WRANGLER_VERSION=${var.wrangler_version}",
+      "NODE_VERSION=${var.node_version}",
       "AWSCLI_VERSION=${var.awscli_version}",
       "AZURE_CLI_VERSION=${var.azure_cli_version}",
     ]

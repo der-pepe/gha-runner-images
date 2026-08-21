@@ -77,7 +77,12 @@ if ($env:NINJA_VERSION) {
 if ($env:INSTALL_CODEQL_LANGS -eq 'true') {
     $ProgressPreference = 'SilentlyContinue'
     Write-Host 'Installing Node.js...'
-    Invoke-WebRequest 'https://nodejs.org/dist/v20.17.0/node-v20.17.0-x64.msi' -OutFile 'C:\Windows\Temp\node.msi' -UseBasicParsing
+    # Node version is pinned here and must satisfy the tools installed on top of it:
+    # wrangler 4.x requires >=22, and the old v20.17.0 pin failed the bake with
+    # "npm warn EBADENGINE Unsupported engine". Linux tracks NodeSource LTS, so keep this
+    # near LTS too or the two images drift apart.
+    $nodeVer = if ($env:NODE_VERSION) { $env:NODE_VERSION } else { '24.19.0' }
+    Invoke-WebRequest "https://nodejs.org/dist/v$nodeVer/node-v$nodeVer-x64.msi" -OutFile 'C:\Windows\Temp\node.msi' -UseBasicParsing
     Start-Process msiexec -ArgumentList '/i', 'C:\Windows\Temp\node.msi', '/quiet', '/norestart' -Wait
 
     Write-Host 'Installing Python 3...'
@@ -177,8 +182,16 @@ Write-Host "Installing Wrangler $env:WRANGLER_VERSION..."
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 $npm = Join-Path $env:ProgramFiles 'nodejs\npm.cmd'
 if (-not (Test-Path $npm)) { throw "npm.cmd not found at $npm - did the Node.js install step run?" }
-& $npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "wrangler install failed (npm exit $LASTEXITCODE)" }
+# npm writes warnings (EBADENGINE, deprecations) to stderr, and under
+# $ErrorActionPreference='Stop' PowerShell promotes native stderr to a TERMINATING error —
+# a mere warning killed an 84-minute bake. Demote errors for this call and judge success by
+# the exit code, which is what actually reports failure.
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& $npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | ForEach-Object { Write-Host $_ }
+$npmExit = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
+if ($npmExit -ne 0) { throw "wrangler install failed (npm exit $npmExit)" }
 
 Write-Host 'Updating machine PATH + DOTNET_ROOT...'
 $p = [Environment]::GetEnvironmentVariable('Path', 'Machine')
