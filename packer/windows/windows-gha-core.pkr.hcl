@@ -127,24 +127,24 @@ variable "tflint_version" {
   description = "TFLint version. Release zip, SHA-256 verified against the published checksums.txt."
 }
 variable "wrangler_version" {
-  default     = "4.125.0"
-  description = "Cloudflare Wrangler CLI version (npm global; needs Node.js installed above)."
+  default     = ""
+  description = "Wrangler version, or EMPTY to track latest (the default). Its engines field gates on Node — a major bump can outrun the pinned Node and fail with EBADENGINE."
 }
 variable "awscli_version" {
-  default     = "2.36.28"
-  description = "AWS CLI v2 version (MSI). Pinned but NOT checksum-verified: AWS publishes a GPG signature rather than a checksum file."
+  default     = ""
+  description = "AWS CLI v2 version, or EMPTY to track latest (the default) via the unversioned MSI."
 }
 variable "azure_cli_version" {
-  default     = "2.89.1"
-  description = "Azure CLI version (MSI from azcliprod). Pinned; Microsoft does not publish a checksum file alongside the MSI."
+  default     = ""
+  description = "Azure CLI version, or EMPTY to track latest (the default) via Microsoft's aka.ms redirect."
 }
 variable "codeql_bundle_version" {
   default     = "2.26.3"
   description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download it every run. Must match the version github/codeql-action requests; a mismatch just falls back to downloading. Empty string skips seeding."
 }
 variable "trivy_version" {
-  default     = "0.74.0"
-  description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH."
+  default     = ""
+  description = "Trivy version, or EMPTY to track latest (the default). SHA-256 verified against whichever release is fetched."
 }
 variable "sonar_scanner_version" {
   default     = "8.1.0.6389"

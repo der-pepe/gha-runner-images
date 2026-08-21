@@ -120,7 +120,14 @@ if ($env:INSTALL_CODEQL_LANGS -eq 'true') {
 $ProgressPreference = 'SilentlyContinue'
 Write-Host 'Installing Trivy...'
 New-Item -ItemType Directory -Force 'C:\Tools\trivy' | Out-Null
-Invoke-WebRequest "https://github.com/aquasecurity/trivy/releases/download/v$($env:TRIVY_VERSION)/trivy_$($env:TRIVY_VERSION)_windows-64bit.zip" -OutFile 'C:\Windows\Temp\trivy.zip' -UseBasicParsing
+# Empty TRIVY_VERSION means track latest: resolve the tag, then download. Trivy is the
+# vulnerability scanner — going stale means missing detections, so latest is the default.
+$tv = $env:TRIVY_VERSION
+if (-not $tv) {
+    $tv = ((Invoke-WebRequest 'https://api.github.com/repos/aquasecurity/trivy/releases/latest' -UseBasicParsing).Content | ConvertFrom-Json).tag_name -replace '^v',''
+    Write-Host "Trivy version resolved to $tv"
+}
+Invoke-WebRequest "https://github.com/aquasecurity/trivy/releases/download/v$tv/trivy_${tv}_windows-64bit.zip" -OutFile 'C:\Windows\Temp\trivy.zip' -UseBasicParsing
 Expand-Archive 'C:\Windows\Temp\trivy.zip' -DestinationPath 'C:\Tools\trivy' -Force
 
 Write-Host "Installing dotnet-sonarscanner $env:DOTNET_SONARSCANNER_VERSION..."
@@ -166,11 +173,15 @@ if (-not $want -or $got -ne $want.ToLower()) { throw "TFLint checksum mismatch: 
 Expand-Archive 'C:\Windows\Temp\tflint.zip' -DestinationPath 'C:\Tools\tflint' -Force
 
 Write-Host "Installing AWS CLI v2 $env:AWSCLI_VERSION..."
-Invoke-WebRequest "https://awscli.amazonaws.com/AWSCLIV2-$($env:AWSCLI_VERSION).msi" -OutFile 'C:\Windows\Temp\awscli.msi' -UseBasicParsing
+# Empty version = the unversioned MSI, which is always current.
+$awsUrl = if ($env:AWSCLI_VERSION) { "https://awscli.amazonaws.com/AWSCLIV2-$($env:AWSCLI_VERSION).msi" } else { 'https://awscli.amazonaws.com/AWSCLIV2.msi' }
+Invoke-WebRequest $awsUrl -OutFile 'C:\Windows\Temp\awscli.msi' -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\awscli.msi','/qn','/norestart' -Wait
 
 Write-Host "Installing Azure CLI $env:AZURE_CLI_VERSION..."
-Invoke-WebRequest "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
+# Empty version = Microsoft's evergreen redirect, which always serves current.
+$azUrl = if ($env:AZURE_CLI_VERSION) { "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" } else { 'https://aka.ms/installazurecliwindows' }
+Invoke-WebRequest $azUrl -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\azurecli.msi','/qn','/norestart' -Wait
 
 # Node was installed by THIS script, so its machine-PATH entry does not exist in this
@@ -188,7 +199,8 @@ if (-not (Test-Path $npm)) { throw "npm.cmd not found at $npm - did the Node.js 
 # the exit code, which is what actually reports failure.
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& $npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | ForEach-Object { Write-Host $_ }
+$wranglerSpec = if ($env:WRANGLER_VERSION) { "wrangler@$($env:WRANGLER_VERSION)" } else { 'wrangler@latest' }
+& $npm install -g $wranglerSpec 2>&1 | ForEach-Object { Write-Host $_ }
 $npmExit = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ($npmExit -ne 0) { throw "wrangler install failed (npm exit $npmExit)" }

@@ -53,14 +53,16 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
 
 # Code-quality scanners: Trivy + SonarScanner (dotnet tool + generic CLI), on PATH.
 # All pinned. Trivy is checksum-verified; no vuln DB is baked (the workflow fetches it).
-ARG TRIVY_VERSION=0.74.0
+ARG TRIVY_VERSION=
 ARG SONAR_SCANNER_VERSION=8.1.0.6389
 ARG DOTNET_SONARSCANNER_VERSION=11.2.1
 ENV PATH="/opt/dotnet-tools:/opt/sonar-scanner/bin:${PATH}"
-RUN curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
- && curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_checksums.txt" \
- && grep "trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" "trivy_${TRIVY_VERSION}_checksums.txt" | sha256sum -c - \
- && tar -xzf "trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -C /usr/local/bin trivy && rm -f trivy_${TRIVY_VERSION}_* \
+RUN TV="${TRIVY_VERSION}"; [ -n "$TV" ] || TV=$(curl -fsSL https://api.github.com/repos/aquasecurity/trivy/releases/latest | jq -r .tag_name | sed 's/^v//') \
+ && echo "trivy version: $TV" \
+ && curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TV}/trivy_${TV}_Linux-64bit.tar.gz" \
+ && curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TV}/trivy_${TV}_checksums.txt" \
+ && grep " trivy_${TV}_Linux-64bit.tar.gz$" "trivy_${TV}_checksums.txt" | sha256sum -c - \
+ && tar -xzf "trivy_${TV}_Linux-64bit.tar.gz" -C /usr/local/bin trivy && rm -f trivy_${TV}_* \
  && dotnet tool install --tool-path /opt/dotnet-tools --version "${DOTNET_SONARSCANNER_VERSION}" dotnet-sonarscanner \
  && curl -fsSL -o /tmp/sonar.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}.zip" \
  && unzip -q /tmp/sonar.zip -d /opt && mv "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}" /opt/sonar-scanner && rm -f /tmp/sonar.zip \
@@ -72,8 +74,8 @@ RUN curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TRIV
 # file, so it is version-pinned but not verified here.
 ARG OPENTOFU_VERSION=1.12.6
 ARG TFLINT_VERSION=0.64.0
-ARG AWSCLI_VERSION=2.36.28
-ARG WRANGLER_VERSION=4.125.0
+ARG AWSCLI_VERSION=
+ARG WRANGLER_VERSION=
 RUN curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_amd64.zip" \
  && curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_SHA256SUMS" \
  && grep " tofu_${OPENTOFU_VERSION}_linux_amd64.zip$" "tofu_${OPENTOFU_VERSION}_SHA256SUMS" | sha256sum -c - \
@@ -84,7 +86,7 @@ RUN curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENT
  && grep " tflint_linux_amd64.zip$" tflint_checksums.txt | sha256sum -c - \
  && unzip -o -q tflint_linux_amd64.zip tflint -d /usr/local/bin && chmod 0755 /usr/local/bin/tflint \
  && rm -f tflint_linux_amd64.zip tflint_checksums.txt \
- && curl -fsSL -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
+ && curl -fsSL -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64${AWSCLI_VERSION:+-$AWSCLI_VERSION}.zip" \
  && unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && /tmp/awscliv2/aws/install --update \
  && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip \
  && install -m 0755 -d /etc/apt/keyrings \
@@ -92,7 +94,7 @@ RUN curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENT
  && chmod 0644 /etc/apt/keyrings/microsoft.gpg \
  && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(. /etc/os-release && echo $VERSION_CODENAME) main" > /etc/apt/sources.list.d/azure-cli.list \
  && apt-get update && apt-get install -y --no-install-recommends azure-cli && rm -rf /var/lib/apt/lists/* \
- && npm install -g "wrangler@${WRANGLER_VERSION}"
+ && npm install -g "wrangler@${WRANGLER_VERSION:-latest}"
 
 # Android: JDK 17 + Android SDK (cmdline-tools, platform, build-tools) + the .NET android
 # workload (for MAUI/Android + Gradle). ~2-3 GB; set INSTALL_ANDROID=0 to skip.

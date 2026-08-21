@@ -81,12 +81,12 @@ variable "tflint_version" {
   description = "TFLint (Terraform/OpenTofu linter) version. Release zip, SHA-256 verified against the published checksums.txt."
 }
 variable "wrangler_version" {
-  default     = "4.125.0"
-  description = "Cloudflare Wrangler CLI version (npm global; needs the Node.js LTS installed above)."
+  default     = ""
+  description = "Wrangler version, or EMPTY to track latest (the default). Note the coupling: wrangler's engines field gates on Node, so a major bump can demand a newer Node than the image installs — exactly how a bake failed with EBADENGINE."
 }
 variable "awscli_version" {
-  default     = "2.36.28"
-  description = "AWS CLI v2 version. NOTE: AWS publishes a GPG signature rather than a SHA256SUMS file, so this is pinned but NOT checksum-verified here — unlike Trivy and OpenTofu."
+  default     = ""
+  description = "AWS CLI v2 version, or EMPTY to track latest (the default). Cloud CLIs gate on remote service APIs rather than on your code, so going stale is the bigger risk. NOTE: AWS publishes a GPG signature rather than a checksums file, so this is not checksum-verified either way."
 }
 variable "azure_cli_version" {
   default     = ""
@@ -97,8 +97,8 @@ variable "codeql_bundle_version" {
   description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download ~500 MB every run. Must match the version github/codeql-action requests: if the action wants a newer bundle it misses this cache and downloads anyway (harmless, just slow). Bump when the action does; empty string skips seeding."
 }
 variable "trivy_version" {
-  default     = "0.74.0"
-  description = "Trivy (vuln/IaC/secret scanner) version to bake on PATH. Pinned; verified by checksum."
+  default     = ""
+  description = "Trivy version, or EMPTY to track the latest release (the default). Trivy is a vulnerability scanner: running behind means missing detections, so staleness is the bigger risk here than a surprise bump. The download is SHA-256 verified against whichever release is fetched either way. Set a version to pin if a release misbehaves."
 }
 variable "sonar_scanner_version" {
   default     = "8.1.0.6389"
@@ -229,7 +229,7 @@ build {
       "curl -fsSL -o /tmp/tflint_checksums.txt https://github.com/terraform-linters/tflint/releases/download/v${var.tflint_version}/checksums.txt",
       "(cd /tmp && cp tflint.zip tflint_linux_amd64.zip && grep ' tflint_linux_amd64.zip$' tflint_checksums.txt | sha256sum -c - && rm -f tflint_linux_amd64.zip)",
       "sudo unzip -o -q /tmp/tflint.zip tflint -d /usr/local/bin && sudo chmod 0755 /usr/local/bin/tflint && rm -f /tmp/tflint.zip /tmp/tflint_checksums.txt",
-      "curl -fsSL -o /tmp/awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${var.awscli_version}.zip",
+      "curl -fsSL -o /tmp/awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64${var.awscli_version != "" ? "-${var.awscli_version}" : ""}.zip",
       "unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && sudo /tmp/awscliv2/aws/install --update && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip",
       # Azure CLI lives in its OWN Microsoft repo — packages-microsoft-prod (installed above
       # for dotnet/powershell) does NOT carry it, so installing azure-cli without this fails
@@ -241,7 +241,7 @@ build {
       "echo \"deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/azure-cli.list >/dev/null",
       "sudo apt-get update",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y azure-cli${var.azure_cli_version != "" ? "=${var.azure_cli_version}" : ""}",
-      "${var.install_nodejs ? "sudo npm install -g wrangler@${var.wrangler_version}" : "true"}",
+      "${var.install_nodejs ? "sudo npm install -g wrangler@${var.wrangler_version != "" ? var.wrangler_version : "latest"}" : "true"}",
       # Rust (rustup) for CodeQL Rust — system install under /opt/rust, symlinked onto PATH.
       # The proxies need RUSTUP_HOME to find the toolchain, so it's exported for jobs via .env.
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo RUSTUP_HOME=/opt/rust CARGO_HOME=/opt/rust sh -s -- -y --no-modify-path --profile minimal --default-toolchain stable",
@@ -251,9 +251,11 @@ build {
       # Trivy: download the pinned release artifact + its checksums file and verify the
       # SHA-256 before extracting (no unverified pipe-to-shell). NOTE: no vuln DB is baked —
       # the consuming workflow downloads/caches it (it would go stale in a golden image).
-      "cd /tmp && curl -fsSLO https://github.com/aquasecurity/trivy/releases/download/v${var.trivy_version}/trivy_${var.trivy_version}_Linux-64bit.tar.gz && curl -fsSLO https://github.com/aquasecurity/trivy/releases/download/v${var.trivy_version}/trivy_${var.trivy_version}_checksums.txt",
-      "cd /tmp && grep 'trivy_${var.trivy_version}_Linux-64bit.tar.gz' trivy_${var.trivy_version}_checksums.txt | sha256sum -c -",
-      "sudo tar -xzf /tmp/trivy_${var.trivy_version}_Linux-64bit.tar.gz -C /usr/local/bin trivy && rm -f /tmp/trivy_${var.trivy_version}_*",
+      # Resolve the version first: an empty var means latest. Checksum verification is
+      # unchanged either way — we verify against whichever release we actually fetched, so
+      # tracking latest costs provenance-over-time, not integrity. One shell invocation so
+      # the resolved version survives across the steps.
+      "cd /tmp && TV='${var.trivy_version}'; [ -n \"$TV\" ] || TV=$(curl -fsSL https://api.github.com/repos/aquasecurity/trivy/releases/latest | jq -r .tag_name | sed 's/^v//'); echo \"trivy version: $TV\" && curl -fsSLO https://github.com/aquasecurity/trivy/releases/download/v$${TV}/trivy_$${TV}_Linux-64bit.tar.gz && curl -fsSLO https://github.com/aquasecurity/trivy/releases/download/v$${TV}/trivy_$${TV}_checksums.txt && grep \" trivy_$${TV}_Linux-64bit.tar.gz$\" trivy_$${TV}_checksums.txt | sha256sum -c - && sudo tar -xzf trivy_$${TV}_Linux-64bit.tar.gz -C /usr/local/bin trivy && rm -f trivy_$${TV}_*",
       # SonarScanner for .NET (pinned, machine-wide /opt/dotnet-tools). Uninstall-then-install
       # is idempotent + upgrades a prior pin cleanly.
       "sudo dotnet tool uninstall --tool-path /opt/dotnet-tools dotnet-sonarscanner 2>/dev/null || true",

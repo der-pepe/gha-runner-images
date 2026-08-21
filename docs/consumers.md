@@ -51,7 +51,17 @@ Defined by the Packer + Ansible automation in this repo:
   for .NET** (`dotnet-sonarscanner`) under `/opt/dotnet-tools`, and the generic
   `sonar-scanner` CLI. All symlinked onto `/usr/local/bin` so they work for the runner
   service account. Versions are pinned via Packer vars (`trivy_version`,
-  `dotnet_sonarscanner_version`, `sonar_scanner_version`) — no unbounded "latest".
+  `dotnet_sonarscanner_version`, `sonar_scanner_version`).
+
+  **Version policy (deliberate split).** Tools are *pinned* where a major bump breaks
+  consuming builds — cmake, Node.js, the .NET SDK channel, OpenTofu, TFLint, the SonarScanners
+  and the CodeQL bundle. A silent bump there surfaces as somebody's job failing, so those
+  changes should be commits, not surprises. Tools *track latest* where going stale is the
+  bigger risk and the CLI surface is stable: **Trivy** (a scanner running behind misses
+  detections) and the cloud CLIs (**AWS**, **Azure**, **Wrangler**), which gate on remote
+  service APIs rather than on your code. Every "latest" tool still accepts a pin — set its
+  version variable and it is used verbatim — so a bad release can be frozen without a code
+  change. Trivy stays SHA-256 verified either way, against whichever release is fetched.
   **Not baked**: the SonarQube server, `SONAR_TOKEN`/host URL/project key, and the Trivy
   vulnerability DB/caches — the consuming workflow supplies those. Roslyn analyzers need no
   package — they ship with the .NET 10 SDK.
