@@ -55,6 +55,14 @@ Defined by the Packer + Ansible automation in this repo:
   **Not baked**: the SonarQube server, `SONAR_TOKEN`/host URL/project key, and the Trivy
   vulnerability DB/caches — the consuming workflow supplies those. Roslyn analyzers need no
   package — they ship with the .NET 10 SDK.
+- **Cloud / IaC CLIs** (all three images): **OpenTofu** (`tofu`), **TFLint**, **AWS CLI v2**,
+  **Azure CLI** (`az`) and **Cloudflare Wrangler**. Versions are pinned via Packer vars /
+  Docker ARGs (`opentofu_version`, `tflint_version`, `awscli_version`, `azure_cli_version`,
+  `wrangler_version`). Verification differs by vendor, deliberately: OpenTofu and TFLint are
+  SHA-256 checked against their published checksum files; Azure CLI on Linux comes from the
+  Microsoft apt repo so apt's GPG chain covers it; **AWS CLI v2 is pinned but not
+  checksum-verified** — AWS publishes a GPG signature instead of a checksum file. **No cloud
+  credentials, profiles, or subscriptions are baked** — the consuming workflow supplies them.
 - **Windows runner** also bakes (packer/windows): Git, .NET 10 SDK, PowerShell 7 (pwsh),
   the runner + boot-waiter, and **Visual Studio Build Tools** (`install_buildtools`:
   MSBuild + ManagedDesktop + VCTools + VC.Tools.x86.x64 + Windows 11 SDK) — so MSBuild,

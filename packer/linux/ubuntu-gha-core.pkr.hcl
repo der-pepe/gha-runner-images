@@ -69,6 +69,26 @@ variable "dotnet_workloads" {
   default     = ""
   description = "Space-separated .NET workloads to install (e.g. 'android wasm-tools'). Empty = none."
 }
+variable "opentofu_version" {
+  default     = "1.12.6"
+  description = "OpenTofu (tofu) CLI version. Release zip, SHA-256 verified against the published SHA256SUMS."
+}
+variable "tflint_version" {
+  default     = "0.64.0"
+  description = "TFLint (Terraform/OpenTofu linter) version. Release zip, SHA-256 verified against the published checksums.txt."
+}
+variable "wrangler_version" {
+  default     = "4.125.0"
+  description = "Cloudflare Wrangler CLI version (npm global; needs the Node.js LTS installed above)."
+}
+variable "awscli_version" {
+  default     = "2.36.28"
+  description = "AWS CLI v2 version. NOTE: AWS publishes a GPG signature rather than a SHA256SUMS file, so this is pinned but NOT checksum-verified here — unlike Trivy and OpenTofu."
+}
+variable "azure_cli_version" {
+  default     = ""
+  description = "Azure CLI apt version (e.g. 2.89.1-1~noble). Empty = whatever the Microsoft repo currently serves, which is GPG-verified by apt — same treatment as dotnet-sdk/powershell above."
+}
 variable "codeql_bundle_version" {
   default     = "2.26.3"
   description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download ~500 MB every run. Must match the version github/codeql-action requests: if the action wants a newer bundle it misses this cache and downloads anyway (harmless, just slow). Bump when the action does; empty string skips seeding."
@@ -194,6 +214,22 @@ build {
       "${var.install_nodejs ? "curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs" : "true"}",
       # .NET workloads (e.g. android, wasm-tools). Native AOT needs no workload (uses clang/zlib above).
       "${var.dotnet_workloads != "" ? "sudo dotnet workload install ${var.dotnet_workloads}" : "true"}",
+      # Cloud/IaC CLIs. OpenTofu is checksum-verified from its published SHA256SUMS (same
+      # treatment as Trivy). Azure CLI comes from the Microsoft apt repo configured above, so
+      # apt's GPG chain verifies it. AWS CLI v2 ships a GPG signature instead of a checksum
+      # file, so it is version-pinned but not verified here — a deliberate, documented gap.
+      "curl -fsSLO https://github.com/opentofu/opentofu/releases/download/v${var.opentofu_version}/tofu_${var.opentofu_version}_linux_amd64.zip",
+      "curl -fsSLO https://github.com/opentofu/opentofu/releases/download/v${var.opentofu_version}/tofu_${var.opentofu_version}_SHA256SUMS",
+      "grep \" tofu_${var.opentofu_version}_linux_amd64.zip$\" tofu_${var.opentofu_version}_SHA256SUMS | sha256sum -c -",
+      "sudo unzip -o -q tofu_${var.opentofu_version}_linux_amd64.zip tofu -d /usr/local/bin && sudo chmod 0755 /usr/local/bin/tofu && rm -f tofu_${var.opentofu_version}_*",
+      "curl -fsSL -o /tmp/tflint.zip https://github.com/terraform-linters/tflint/releases/download/v${var.tflint_version}/tflint_linux_amd64.zip",
+      "curl -fsSL -o /tmp/tflint_checksums.txt https://github.com/terraform-linters/tflint/releases/download/v${var.tflint_version}/checksums.txt",
+      "(cd /tmp && cp tflint.zip tflint_linux_amd64.zip && grep ' tflint_linux_amd64.zip$' tflint_checksums.txt | sha256sum -c - && rm -f tflint_linux_amd64.zip)",
+      "sudo unzip -o -q /tmp/tflint.zip tflint -d /usr/local/bin && sudo chmod 0755 /usr/local/bin/tflint && rm -f /tmp/tflint.zip /tmp/tflint_checksums.txt",
+      "curl -fsSL -o /tmp/awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${var.awscli_version}.zip",
+      "unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && sudo /tmp/awscliv2/aws/install --update && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y azure-cli${var.azure_cli_version != "" ? "=${var.azure_cli_version}" : ""}",
+      "${var.install_nodejs ? "sudo npm install -g wrangler@${var.wrangler_version}" : "true"}",
       # Rust (rustup) for CodeQL Rust — system install under /opt/rust, symlinked onto PATH.
       # The proxies need RUSTUP_HOME to find the toolchain, so it's exported for jobs via .env.
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo RUSTUP_HOME=/opt/rust CARGO_HOME=/opt/rust sh -s -- -y --no-modify-path --profile minimal --default-toolchain stable",
@@ -270,7 +306,7 @@ build {
   }
   provisioner "shell" {
     inline = [
-      "sudo -u gha-runner env EXPECTED_TRIVY='${var.trivy_version}' EXPECTED_SONARSCANNER='${var.dotnet_sonarscanner_version}' bash /tmp/smoke-test-linux.sh",
+      "sudo -u gha-runner env EXPECTED_TRIVY='${var.trivy_version}' EXPECTED_SONARSCANNER='${var.dotnet_sonarscanner_version}' EXPECTED_OPENTOFU='${var.opentofu_version}' EXPECTED_TFLINT='${var.tflint_version}' EXPECTED_AWSCLI='${var.awscli_version}' EXPECTED_WRANGLER='${var.wrangler_version}' bash /tmp/smoke-test-linux.sh",
     ]
   }
 

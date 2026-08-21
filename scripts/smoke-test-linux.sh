@@ -49,4 +49,40 @@ if [ -n "${EXPECTED_TRIVY:-}" ]; then
     || fail "trivy version mismatch (want ${EXPECTED_TRIVY}): ${tv_out}"
 fi
 
+# Cloud/IaC CLIs. Same rule as above: present, on PATH for the runner account, exits zero,
+# and reports the pinned version. `aws --version` writes to stdout on v2; `az version` needs
+# no login and emits JSON. None of these contact a cloud provider or need credentials.
+for tool in tofu tflint aws az wrangler; do
+  have "$tool"
+done
+
+tofu_out="$(tofu version 2>&1)" || fail "tofu version exited non-zero: ${tofu_out}"
+if [ -n "${EXPECTED_OPENTOFU:-}" ]; then
+  printf '%s' "$tofu_out" | grep -qF "$EXPECTED_OPENTOFU" \
+    || fail "tofu version mismatch (want ${EXPECTED_OPENTOFU}): ${tofu_out}"
+fi
+
+tflint_out="$(tflint --version 2>&1)" || fail "tflint --version exited non-zero: ${tflint_out}"
+if [ -n "${EXPECTED_TFLINT:-}" ]; then
+  printf '%s' "$tflint_out" | grep -qF "$EXPECTED_TFLINT" \
+    || fail "tflint version mismatch (want ${EXPECTED_TFLINT}): ${tflint_out}"
+fi
+
+aws_out="$(aws --version 2>&1)" || fail "aws --version exited non-zero: ${aws_out}"
+if [ -n "${EXPECTED_AWSCLI:-}" ]; then
+  printf '%s' "$aws_out" | grep -qF "$EXPECTED_AWSCLI" \
+    || fail "aws version mismatch (want ${EXPECTED_AWSCLI}): ${aws_out}"
+fi
+
+wr_out="$(wrangler --version 2>&1)" || fail "wrangler --version exited non-zero: ${wr_out}"
+if [ -n "${EXPECTED_WRANGLER:-}" ]; then
+  printf '%s' "$wr_out" | grep -qF "$EXPECTED_WRANGLER" \
+    || fail "wrangler version mismatch (want ${EXPECTED_WRANGLER}): ${wr_out}"
+fi
+
+# Azure CLI is intentionally not version-asserted: it comes from the Microsoft apt repo and
+# the pin is optional, so the image may legitimately carry whatever the repo served.
+az_out="$(az version 2>&1)" || fail "az version exited non-zero: ${az_out}"
+
 echo "smoke test OK: dotnet + dotnet-sonarscanner ${EXPECTED_SONARSCANNER:-?} + trivy ${EXPECTED_TRIVY:-?}"
+echo "               tofu ${EXPECTED_OPENTOFU:-?} + tflint ${EXPECTED_TFLINT:-?} + aws ${EXPECTED_AWSCLI:-?} + wrangler ${EXPECTED_WRANGLER:-?} + az (repo build)"

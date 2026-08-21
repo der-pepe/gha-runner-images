@@ -106,6 +106,26 @@ variable "install_codeql_langs" {
   default     = true
   description = "Bake the extra language toolchains: Node.js, Python, JDK (JAVA_HOME), Go, Ruby, Rust. Big (+GBs, +time)."
 }
+variable "opentofu_version" {
+  default     = "1.12.6"
+  description = "OpenTofu (tofu) CLI version. Release zip, SHA-256 verified against the published SHA256SUMS."
+}
+variable "tflint_version" {
+  default     = "0.64.0"
+  description = "TFLint version. Release zip, SHA-256 verified against the published checksums.txt."
+}
+variable "wrangler_version" {
+  default     = "4.125.0"
+  description = "Cloudflare Wrangler CLI version (npm global; needs Node.js installed above)."
+}
+variable "awscli_version" {
+  default     = "2.36.28"
+  description = "AWS CLI v2 version (MSI). Pinned but NOT checksum-verified: AWS publishes a GPG signature rather than a checksum file."
+}
+variable "azure_cli_version" {
+  default     = "2.89.1"
+  description = "Azure CLI version (MSI from azcliprod). Pinned; Microsoft does not publish a checksum file alongside the MSI."
+}
 variable "codeql_bundle_version" {
   default     = "2.26.3"
   description = "CodeQL bundle pre-seeded into the toolcache so ephemeral jobs don't re-download it every run. Must match the version github/codeql-action requests; a mismatch just falls back to downloading. Empty string skips seeding."
@@ -298,6 +318,11 @@ build {
       "SONAR_SCANNER_VERSION=${var.sonar_scanner_version}",
       "DOTNET_SONARSCANNER_VERSION=${var.dotnet_sonarscanner_version}",
       "CODEQL_BUNDLE_VERSION=${var.codeql_bundle_version}",
+      "OPENTOFU_VERSION=${var.opentofu_version}",
+      "TFLINT_VERSION=${var.tflint_version}",
+      "WRANGLER_VERSION=${var.wrangler_version}",
+      "AWSCLI_VERSION=${var.awscli_version}",
+      "AZURE_CLI_VERSION=${var.azure_cli_version}",
     ]
     scripts = ["scripts/install-runner.ps1"]
   }

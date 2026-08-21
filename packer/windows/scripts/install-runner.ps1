@@ -139,8 +139,42 @@ Expand-Archive 'C:\Windows\Temp\sonar.zip' -DestinationPath 'C:\Windows\Temp\son
 if (Test-Path 'C:\Tools\sonar-scanner') { Remove-Item 'C:\Tools\sonar-scanner' -Recurse -Force }
 Move-Item (Get-ChildItem 'C:\Windows\Temp\sonarx' -Directory | Select-Object -First 1).FullName 'C:\Tools\sonar-scanner'
 
+# Cloud/IaC CLIs. OpenTofu and TFLint are SHA-256 verified against their published checksum
+# files (same treatment as Trivy). AWS and Azure ship MSIs with no checksum file published
+# alongside them, so those are version-pinned only — a deliberate, documented gap.
+Write-Host "Installing OpenTofu $env:OPENTOFU_VERSION..."
+New-Item -Force -ItemType Directory 'C:\Tools\opentofu' | Out-Null
+Invoke-WebRequest "https://github.com/opentofu/opentofu/releases/download/v$($env:OPENTOFU_VERSION)/tofu_$($env:OPENTOFU_VERSION)_windows_amd64.zip" -OutFile 'C:\Windows\Temp\tofu.zip' -UseBasicParsing
+Invoke-WebRequest "https://github.com/opentofu/opentofu/releases/download/v$($env:OPENTOFU_VERSION)/tofu_$($env:OPENTOFU_VERSION)_SHA256SUMS" -OutFile 'C:\Windows\Temp\tofu_sums.txt' -UseBasicParsing
+$want = ((Get-Content 'C:\Windows\Temp\tofu_sums.txt' | Where-Object { $_ -match "tofu_$([regex]::Escape($env:OPENTOFU_VERSION))_windows_amd64\.zip$" }) -split '\s+')[0]
+$got  = (Get-FileHash 'C:\Windows\Temp\tofu.zip' -Algorithm SHA256).Hash.ToLower()
+if (-not $want -or $got -ne $want.ToLower()) { throw "OpenTofu checksum mismatch: got $got want $want" }
+Expand-Archive 'C:\Windows\Temp\tofu.zip' -DestinationPath 'C:\Tools\opentofu' -Force
+
+Write-Host "Installing TFLint $env:TFLINT_VERSION..."
+New-Item -Force -ItemType Directory 'C:\Tools\tflint' | Out-Null
+Invoke-WebRequest "https://github.com/terraform-linters/tflint/releases/download/v$($env:TFLINT_VERSION)/tflint_windows_amd64.zip" -OutFile 'C:\Windows\Temp\tflint.zip' -UseBasicParsing
+Invoke-WebRequest "https://github.com/terraform-linters/tflint/releases/download/v$($env:TFLINT_VERSION)/checksums.txt" -OutFile 'C:\Windows\Temp\tflint_sums.txt' -UseBasicParsing
+$want = ((Get-Content 'C:\Windows\Temp\tflint_sums.txt' | Where-Object { $_ -match 'tflint_windows_amd64\.zip$' }) -split '\s+')[0]
+$got  = (Get-FileHash 'C:\Windows\Temp\tflint.zip' -Algorithm SHA256).Hash.ToLower()
+if (-not $want -or $got -ne $want.ToLower()) { throw "TFLint checksum mismatch: got $got want $want" }
+Expand-Archive 'C:\Windows\Temp\tflint.zip' -DestinationPath 'C:\Tools\tflint' -Force
+
+Write-Host "Installing AWS CLI v2 $env:AWSCLI_VERSION..."
+Invoke-WebRequest "https://awscli.amazonaws.com/AWSCLIV2-$($env:AWSCLI_VERSION).msi" -OutFile 'C:\Windows\Temp\awscli.msi' -UseBasicParsing
+Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\awscli.msi','/qn','/norestart' -Wait
+
+Write-Host "Installing Azure CLI $env:AZURE_CLI_VERSION..."
+Invoke-WebRequest "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
+Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\azurecli.msi','/qn','/norestart' -Wait
+
+Write-Host "Installing Wrangler $env:WRANGLER_VERSION..."
+& npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | Out-Null
+$global:LASTEXITCODE = 0
+
 Write-Host 'Updating machine PATH + DOTNET_ROOT...'
 $p = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+$p = ($p.TrimEnd(';') + ';C:\Tools\opentofu;C:\Tools\tflint')
 $p = ($p.TrimEnd(';') + ';C:\Program Files\dotnet;C:\Program Files\Git\cmd;C:\Program Files\CMake\bin;C:\Program Files\Ninja;C:\Java\jdk17\bin;C:\go\bin;C:\Ruby33\bin;C:\Rust\bin;C:\Tools\trivy;C:\Tools\dotnet-tools;C:\Tools\sonar-scanner\bin')
 [Environment]::SetEnvironmentVariable('Path', $p, 'Machine')
 [Environment]::SetEnvironmentVariable('DOTNET_ROOT', 'C:\Program Files\dotnet', 'Machine')

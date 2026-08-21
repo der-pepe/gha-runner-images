@@ -61,6 +61,30 @@ RUN curl -fsSLO "https://github.com/aquasecurity/trivy/releases/download/v${TRIV
  && unzip -q /tmp/sonar.zip -d /opt && mv "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}" /opt/sonar-scanner && rm -f /tmp/sonar.zip \
  && chmod -R a+rX /opt/dotnet-tools /opt/sonar-scanner
 
+# Cloud/IaC CLIs, mirroring the Proxmox images. OpenTofu and TFLint are SHA-256 verified
+# against their published checksum files; Azure CLI comes from the Microsoft apt repo added
+# above (apt verifies its GPG chain). AWS CLI v2 ships a GPG signature rather than a checksum
+# file, so it is version-pinned but not verified here.
+ARG OPENTOFU_VERSION=1.12.6
+ARG TFLINT_VERSION=0.64.0
+ARG AWSCLI_VERSION=2.36.28
+ARG WRANGLER_VERSION=4.125.0
+RUN curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_linux_amd64.zip" \
+ && curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENTOFU_VERSION}/tofu_${OPENTOFU_VERSION}_SHA256SUMS" \
+ && grep " tofu_${OPENTOFU_VERSION}_linux_amd64.zip$" "tofu_${OPENTOFU_VERSION}_SHA256SUMS" | sha256sum -c - \
+ && unzip -o -q "tofu_${OPENTOFU_VERSION}_linux_amd64.zip" tofu -d /usr/local/bin && chmod 0755 /usr/local/bin/tofu \
+ && rm -f tofu_${OPENTOFU_VERSION}_* \
+ && curl -fsSL -o tflint_linux_amd64.zip "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip" \
+ && curl -fsSL -o tflint_checksums.txt "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/checksums.txt" \
+ && grep " tflint_linux_amd64.zip$" tflint_checksums.txt | sha256sum -c - \
+ && unzip -o -q tflint_linux_amd64.zip tflint -d /usr/local/bin && chmod 0755 /usr/local/bin/tflint \
+ && rm -f tflint_linux_amd64.zip tflint_checksums.txt \
+ && curl -fsSL -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
+ && unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && /tmp/awscliv2/aws/install --update \
+ && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip \
+ && apt-get update && apt-get install -y --no-install-recommends azure-cli && rm -rf /var/lib/apt/lists/* \
+ && npm install -g "wrangler@${WRANGLER_VERSION}"
+
 # Android: JDK 17 + Android SDK (cmdline-tools, platform, build-tools) + the .NET android
 # workload (for MAUI/Android + Gradle). ~2-3 GB; set INSTALL_ANDROID=0 to skip.
 RUN if [ "$INSTALL_ANDROID" = "1" ]; then set -eux; \
