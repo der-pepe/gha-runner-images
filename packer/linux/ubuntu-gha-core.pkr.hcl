@@ -228,6 +228,15 @@ build {
       "sudo unzip -o -q /tmp/tflint.zip tflint -d /usr/local/bin && sudo chmod 0755 /usr/local/bin/tflint && rm -f /tmp/tflint.zip /tmp/tflint_checksums.txt",
       "curl -fsSL -o /tmp/awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${var.awscli_version}.zip",
       "unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && sudo /tmp/awscliv2/aws/install --update && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip",
+      # Azure CLI lives in its OWN Microsoft repo — packages-microsoft-prod (installed above
+      # for dotnet/powershell) does NOT carry it, so installing azure-cli without this fails
+      # with "E: Unable to locate package azure-cli". Key goes in a keyring and the list entry
+      # is signed-by it, so apt still verifies the GPG chain.
+      "sudo install -m 0755 -d /etc/apt/keyrings",
+      "curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes -o /etc/apt/keyrings/microsoft.gpg",
+      "sudo chmod 0644 /etc/apt/keyrings/microsoft.gpg",
+      "echo \"deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/azure-cli.list >/dev/null",
+      "sudo apt-get update",
       "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y azure-cli${var.azure_cli_version != "" ? "=${var.azure_cli_version}" : ""}",
       "${var.install_nodejs ? "sudo npm install -g wrangler@${var.wrangler_version}" : "true"}",
       # Rust (rustup) for CodeQL Rust — system install under /opt/rust, symlinked onto PATH.

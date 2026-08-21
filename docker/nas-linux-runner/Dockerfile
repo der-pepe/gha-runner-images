@@ -82,6 +82,10 @@ RUN curl -fsSLO "https://github.com/opentofu/opentofu/releases/download/v${OPENT
  && curl -fsSL -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" \
  && unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && /tmp/awscliv2/aws/install --update \
  && rm -rf /tmp/awscliv2 /tmp/awscliv2.zip \
+ && install -m 0755 -d /etc/apt/keyrings \
+ && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor --yes -o /etc/apt/keyrings/microsoft.gpg \
+ && chmod 0644 /etc/apt/keyrings/microsoft.gpg \
+ && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(. /etc/os-release && echo $VERSION_CODENAME) main" > /etc/apt/sources.list.d/azure-cli.list \
  && apt-get update && apt-get install -y --no-install-recommends azure-cli && rm -rf /var/lib/apt/lists/* \
  && npm install -g "wrangler@${WRANGLER_VERSION}"
 
