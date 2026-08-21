@@ -168,9 +168,17 @@ Write-Host "Installing Azure CLI $env:AZURE_CLI_VERSION..."
 Invoke-WebRequest "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\azurecli.msi','/qn','/norestart' -Wait
 
+# Node was installed by THIS script, so its machine-PATH entry does not exist in this
+# already-running process — `npm` resolves to nothing and the bake died here at 82 minutes.
+# Refresh the process PATH from the machine value, then invoke npm.cmd by explicit path
+# (verified present at $env:ProgramFiles\nodejs\npm.cmd on a live runner). PowerShell needs
+# the .cmd extension: `npm` alone is not an executable on Windows.
 Write-Host "Installing Wrangler $env:WRANGLER_VERSION..."
-& npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | Out-Null
-$global:LASTEXITCODE = 0
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+$npm = Join-Path $env:ProgramFiles 'nodejs\npm.cmd'
+if (-not (Test-Path $npm)) { throw "npm.cmd not found at $npm - did the Node.js install step run?" }
+& $npm install -g "wrangler@$($env:WRANGLER_VERSION)" 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "wrangler install failed (npm exit $LASTEXITCODE)" }
 
 Write-Host 'Updating machine PATH + DOTNET_ROOT...'
 $p = [Environment]::GetEnvironmentVariable('Path', 'Machine')
