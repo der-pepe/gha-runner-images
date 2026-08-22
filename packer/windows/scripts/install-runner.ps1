@@ -210,9 +210,24 @@ $upxExe = Get-ChildItem 'C:\Windows\Temp\upxx' -Recurse -Filter 'upx.exe' | Sele
 if (-not $upxExe) { throw 'upx.exe not found in the downloaded archive' }
 Copy-Item $upxExe.FullName 'C:\Tools\upx\upx.exe' -Force
 
+# SourceForge serves an HTML interstitial to PowerShell's default User-Agent, so the "exe"
+# downloads as a web page and Start-Process fails with "The file or directory is corrupted and
+# unreadable" — an 88-minute build died that way. Send a browser UA to get the real binary,
+# then verify it actually IS one: a PE starts with "MZ". Checking HTTP 200 alone is not enough,
+# because the interstitial is also a 200.
 Write-Host "Installing NSIS $env:NSIS_VERSION..."
-Invoke-WebRequest "https://downloads.sourceforge.net/project/nsis/NSIS%203/$($env:NSIS_VERSION)/nsis-$($env:NSIS_VERSION)-setup.exe" -OutFile 'C:\Windows\Temp\nsis-setup.exe' -UseBasicParsing
-Start-Process 'C:\Windows\Temp\nsis-setup.exe' -ArgumentList '/S' -Wait
+$nsisExe = 'C:\Windows\Temp\nsis-setup.exe'
+$ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+Invoke-WebRequest "https://downloads.sourceforge.net/project/nsis/NSIS%203/$($env:NSIS_VERSION)/nsis-$($env:NSIS_VERSION)-setup.exe" -OutFile $nsisExe -UseBasicParsing -UserAgent $ua
+$fs = [System.IO.File]::OpenRead($nsisExe)
+$sig = New-Object byte[] 2; $null = $fs.Read($sig, 0, 2); $fs.Close()
+$isPe = ($sig[0] -eq 0x4D -and $sig[1] -eq 0x5A)   # "MZ"
+$len  = (Get-Item $nsisExe).Length
+if (-not $isPe -or $len -lt 500000) {
+    throw "NSIS download is not a PE executable (size=$len, first bytes=$([char]$sig[0])$([char]$sig[1])) - SourceForge likely returned an interstitial page"
+}
+Write-Host "  NSIS installer verified: $len bytes, PE header OK"
+Start-Process $nsisExe -ArgumentList '/S' -Wait
 
 Write-Host 'Updating machine PATH + DOTNET_ROOT...'
 $p = [Environment]::GetEnvironmentVariable('Path', 'Machine')
