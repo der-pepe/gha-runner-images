@@ -178,12 +178,6 @@ $awsUrl = if ($env:AWSCLI_VERSION) { "https://awscli.amazonaws.com/AWSCLIV2-$($e
 Invoke-WebRequest $awsUrl -OutFile 'C:\Windows\Temp\awscli.msi' -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\awscli.msi','/qn','/norestart' -Wait
 
-Write-Host "Installing Azure CLI $env:AZURE_CLI_VERSION..."
-# Empty version = Microsoft's evergreen redirect, which always serves current.
-$azUrl = if ($env:AZURE_CLI_VERSION) { "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" } else { 'https://aka.ms/installazurecliwindows' }
-Invoke-WebRequest $azUrl -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
-Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\azurecli.msi','/qn','/norestart' -Wait
-
 # Node was installed by THIS script, so its machine-PATH entry does not exist in this
 # already-running process — `npm` resolves to nothing and the bake died here at 82 minutes.
 # Refresh the process PATH from the machine value, then invoke npm.cmd by explicit path
@@ -271,5 +265,21 @@ $trigger   = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
 Register-ScheduledTask -TaskName 'gha-runner-waiter' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+
+# Azure CLI goes LAST, deliberately. Its MSI restarts the WinRM service, which drops the
+# provisioner's session — and Packer reads that clean disconnect as the script COMPLETING.
+# When this ran mid-script the bake "succeeded" while silently skipping everything after it:
+# Wrangler, UPX, NSIS, the PATH update, the CodeQL seed and the runner extraction itself,
+# producing a Windows template with no GitHub Actions runner in it. Anything after this point
+# is not guaranteed to execute.
+Write-Host "Installing Azure CLI $env:AZURE_CLI_VERSION..."
+$azUrl = if ($env:AZURE_CLI_VERSION) { "https://azcliprod.blob.core.windows.net/msi/azure-cli-$($env:AZURE_CLI_VERSION)-x64.msi" } else { 'https://aka.ms/installazurecliwindows' }
+Invoke-WebRequest $azUrl -OutFile 'C:\Windows\Temp\azurecli.msi' -UseBasicParsing
+Start-Process msiexec.exe -ArgumentList '/i','C:\Windows\Temp\azurecli.msi','/qn','/norestart' -Wait
+
+# Completion marker. A later provisioner asserts this file exists, so a script that dies or
+# is truncated part-way can no longer pass as a successful build.
+New-Item -Force -ItemType Directory 'C:\gha-runner' | Out-Null
+Set-Content -Path 'C:\gha-runner\.bake-complete' -Value 'ok' -Force
 
 Write-Host 'Windows runner bake complete.'

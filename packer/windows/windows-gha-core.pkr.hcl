@@ -342,6 +342,17 @@ build {
     scripts = ["scripts/install-runner.ps1"]
   }
 
+  # Assert the bake ran to completion before cleanup. The Azure CLI MSI restarts WinRM, and
+  # Packer reads that disconnect as the script finishing — a truncated run previously produced
+  # a "successful" template with no GitHub Actions runner installed. This turns that silent
+  # failure into a loud one.
+  provisioner "powershell" {
+    inline = [
+      "if (-not (Test-Path 'C:\\gha-runner\\.bake-complete')) { throw 'install-runner.ps1 did not run to completion - template is incomplete' }",
+      "Write-Host 'bake completion marker present'"
+    ]
+  }
+
   # cleanup last — the proxmox-iso builder stops the VM itself once provisioning finishes.
   provisioner "powershell" {
     scripts = [
